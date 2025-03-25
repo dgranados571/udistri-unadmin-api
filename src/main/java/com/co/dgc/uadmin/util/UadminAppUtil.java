@@ -1,0 +1,423 @@
+package com.co.dgc.uadmin.util;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import com.co.dgc.uadmin.dto.BeneficiariosDto;
+import com.co.dgc.uadmin.dto.DocumentosDto;
+import com.co.dgc.uadmin.dto.SolicitudAppDto;
+import com.co.dgc.uadmin.entity.BeneficiariosApp;
+import com.co.dgc.uadmin.entity.DepartamentosApp;
+import com.co.dgc.uadmin.entity.EventosSolicitudesApp;
+import com.co.dgc.uadmin.entity.MunicipiosApp;
+import com.co.dgc.uadmin.entity.NotificacionesApp;
+import com.co.dgc.uadmin.entity.SolicitudesApp;
+import com.co.dgc.uadmin.entity.UserApp;
+import com.co.dgc.uadmin.enums.EnumConstantes;
+import com.co.dgc.uadmin.response.GenericResponse;
+import com.co.dgc.uadmin.services.IDepartamentosAppService;
+import com.co.dgc.uadmin.services.IEventosSolicitudesAppService;
+import com.co.dgc.uadmin.services.IMunicipiosAppService;
+import com.co.dgc.uadmin.services.INotificacionesAppService;
+import com.co.dgc.uadmin.services.IUserAppService;
+import com.google.gson.Gson;
+
+public class UadminAppUtil {
+		
+	public static List<SolicitudAppDto> listaSolicitudesAppDtoPaginada(List<SolicitudesApp> listaSolicitudesApp, int elementosPorPagina, int paginaActual) {
+		List<SolicitudAppDto> listaSolicitudesAppDto = new ArrayList<>();
+		int rangoInicial = (paginaActual * elementosPorPagina) - elementosPorPagina;
+		for (int i = 0; i < listaSolicitudesApp.size(); i++) {
+			if ((i + 1) > rangoInicial) {
+				listaSolicitudesAppDto
+						.add(new SolicitudAppDto("", "",listaSolicitudesApp.get(i), new ArrayList<>(), new ArrayList<>(),
+								new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), null, "", ""));
+			}
+			if (listaSolicitudesAppDto.size() == elementosPorPagina) {
+				break;
+			}
+		}
+		return listaSolicitudesAppDto;
+	}
+	
+	public static List<SolicitudesApp> listaSolicitudesFiltroDepartamento(List<SolicitudesApp> listaSolicitudesApp, String departamentoFiltro) {
+		List<SolicitudesApp> solicitudesApp = new ArrayList<>();
+		try {
+			for (int i = 0; i < listaSolicitudesApp.size(); i++) {
+				String departamento_municipio = listaSolicitudesApp.get(i).getDepartamento_municipio();
+				String[] partesDM = departamento_municipio.split(":");
+				if (partesDM.length > 0) {
+					if (partesDM[0].equals(departamentoFiltro)) {
+						solicitudesApp.add(listaSolicitudesApp.get(i));
+					}
+				}
+			}	
+		} catch (Exception e) {
+			solicitudesApp = listaSolicitudesApp;
+			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
+		}
+		return solicitudesApp;
+	}
+	
+	public static List<SolicitudesApp> listaSolicitudesFiltroMunicipio(List<SolicitudesApp> listaSolicitudesApp, String municipioFiltro) {
+		List<SolicitudesApp> solicitudesApp = new ArrayList<>();
+		try {
+			for (int i = 0; i < listaSolicitudesApp.size(); i++) {
+				String departamento_municipio = listaSolicitudesApp.get(i).getDepartamento_municipio();
+				String[] partesDM = departamento_municipio.split(":");
+				if (partesDM.length > 0) {
+					if (partesDM[1].equals(municipioFiltro)) {
+						solicitudesApp.add(listaSolicitudesApp.get(i));
+					}
+				}
+			}	
+		} catch (Exception e) {
+			solicitudesApp = listaSolicitudesApp;
+			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
+		}		
+		return solicitudesApp;
+	}
+
+	public static List<SolicitudesApp> listaSolicitudesFiltroDiasUltimaActualizacion(List<SolicitudesApp> listaSolicitudesApp, String diasUltimaActualizacionFiltro, IEventosSolicitudesAppService iEventosSolicitudesAppService ) {
+		List<SolicitudesApp> solicitudesApp = new ArrayList<>();
+		try {
+			switch (diasUltimaActualizacionFiltro) {
+			case "OPTION_1":
+				for (int i = 0; i < listaSolicitudesApp.size(); i++) {
+					long diasUltimaActualizacion = obtieneDiasUltimaActualizacion(listaSolicitudesApp.get(i).getId_procesamiento(), iEventosSolicitudesAppService);
+					if(diasUltimaActualizacion <= 5) {
+						solicitudesApp.add(listaSolicitudesApp.get(i));
+					}	
+				}
+				break;
+			case "OPTION_2":
+				for (int i = 0; i < listaSolicitudesApp.size(); i++) {
+					long diasUltimaActualizacion = obtieneDiasUltimaActualizacion(listaSolicitudesApp.get(i).getId_procesamiento(), iEventosSolicitudesAppService);
+					if(diasUltimaActualizacion > 5 && diasUltimaActualizacion <= 15) {
+						solicitudesApp.add(listaSolicitudesApp.get(i));
+					}
+				}
+				break;
+			case "OPTION_3":
+				for (int i = 0; i < listaSolicitudesApp.size(); i++) {
+					long diasUltimaActualizacion = obtieneDiasUltimaActualizacion(listaSolicitudesApp.get(i).getId_procesamiento(), iEventosSolicitudesAppService);
+					if(diasUltimaActualizacion > 15) {
+						solicitudesApp.add(listaSolicitudesApp.get(i));
+					}
+				}
+				break;
+			default:
+				break;
+			}
+		} catch (Exception e) {
+			solicitudesApp = listaSolicitudesApp;
+			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
+		}
+		return solicitudesApp;
+	}
+	
+	public static long obtieneDiasUltimaActualizacion(String idProsesamiento, IEventosSolicitudesAppService iEventosSolicitudesAppService) {
+		SimpleDateFormat sdfComplete = new SimpleDateFormat(EnumConstantes.DD_MM_YYYY_HH_MM_SS);
+		long diasUltimaActualizacion = 0L;
+		try {
+			List<EventosSolicitudesApp> eventosSolicitud = iEventosSolicitudesAppService.getESAPorIdProcesamiento(idProsesamiento);			
+			if(!eventosSolicitud.isEmpty()) {
+				Date ya = new Date();
+				Date dateEventFormat = sdfComplete.parse(eventosSolicitud.get(eventosSolicitud.size() - 1).getFecha_evento());
+				long diffInMillies = Math.abs(ya.getTime() - dateEventFormat.getTime());
+				long diffInDays = TimeUnit.DAYS.convert(diffInMillies, TimeUnit.MILLISECONDS);
+				diasUltimaActualizacion = diffInDays;				
+			}
+		} catch (Exception e) {
+			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
+		}		
+		return diasUltimaActualizacion;
+	}
+	
+	public static String obtineLabelDepartamentoMunicipio(String departamento_municipio, IDepartamentosAppService iDepartamentosAppService, IMunicipiosAppService iMunicipiosAppService) {
+		String[] partesDM = departamento_municipio.split(":");
+		String labelDM = departamento_municipio.replace(':', '-');
+		if(partesDM.length > 0) {
+			try {
+				DepartamentosApp departamentosApp = iDepartamentosAppService.getDepartamentosAppPorIdDepartamento(partesDM[0]);
+				MunicipiosApp municipiosApp = iMunicipiosAppService.getMunicipiosPorIdDeDepartamentoIdDeMunicipio(partesDM[0], partesDM[1]);
+				labelDM = municipiosApp.getMunicipio() + " - " + departamentosApp.getDepartamento();
+			} catch (Exception e) {
+				System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
+			}
+		}
+		return labelDM;
+	}
+	
+	public static String getIdDefSolicitud(SolicitudesApp solicitudApp) {
+		String departamentoMunicipio = solicitudApp.getDepartamento_municipio().replace(':', '.');
+		String primerNombre = obtenerPrimerElemento(solicitudApp.getNombres());
+		String primerApellido = obtenerPrimerElemento(solicitudApp.getApellidos());
+		String nombreCompleto = primerApellido + " " + primerNombre;
+		return departamentoMunicipio + "." + nombreCompleto.trim() + "." + solicitudApp.getNumero_identificacion().trim();
+	}
+
+	private static String obtenerPrimerElemento(String cadena) {
+		String[] partes = cadena.split(" ");
+		return partes.length > 0 ? partes[0] : "";
+	}
+	
+	public static String getResultOperation(String nameOperationEvent) {
+		String resultadoOperacion = "";
+		switch (nameOperationEvent) {
+		case EnumConstantes.EVENTO_CREA_SOLICITUD:
+			resultadoOperacion = EnumConstantes.RESULT_CREA_SOLICITUD;
+			break;
+		case EnumConstantes.EVENTO_PREAPROBADO:
+			resultadoOperacion = EnumConstantes.RESULT_PREAPROBADO;
+			break;
+		case EnumConstantes.EVENTO_NO_PREAPROBADO:
+			resultadoOperacion = EnumConstantes.RESULT_NO_PREAPROBADO;
+			break;
+		case EnumConstantes.EVENTO_DEVUELTO_GESTION:
+			resultadoOperacion = EnumConstantes.RESULT_DEVUELTO_GESTION;
+			break;
+		case EnumConstantes.EVENTO_ASIGNA_A_REVISION:
+			resultadoOperacion = EnumConstantes.RESULT_ASIGNA_A_REVISION;
+			break;
+		case EnumConstantes.EVENTO_ESTUDIO_VIABILIDAD:
+			resultadoOperacion = EnumConstantes.RESULT_ESTUDIO_VIABILIDAD;
+			break;
+		case EnumConstantes.EVENTO_VIABLE:
+			resultadoOperacion = EnumConstantes.RESULT_VIABLE;
+			break;
+		case EnumConstantes.EVENTO_NO_VIABLE:
+			resultadoOperacion = EnumConstantes.RESULT_NO_VIABLE;
+			break;
+		case EnumConstantes.EVENTO_ENVIADO_POSTULACION:
+			resultadoOperacion = EnumConstantes.RESULT_ENVIADO_POSTULACION;
+			break;			
+		case EnumConstantes.EVENTO_OBTENCION_SUBSIDIO:
+			resultadoOperacion = EnumConstantes.RESULT_OBTENCION_SUBSIDIO;
+			break;
+		case EnumConstantes.EVENTO_DEVUELTO_INGENIERIA:
+			resultadoOperacion = EnumConstantes.RESULT_DEVUELTO_INGENIERIA;
+			break;
+		default:
+			break;
+		}
+		return resultadoOperacion;
+	}
+
+	public static List<DocumentosDto> getListaDocumentosModuloX(List<String> documentos) {
+		List<DocumentosDto> documentosDtoList = new ArrayList<>();
+		for (String str : documentos) {
+			DocumentosDto documentosDto = new DocumentosDto();
+			documentosDto.setUrlTxt(str);
+			String sufixNaleFile= extraerNombreArchivoSinExtension(str); 
+			String suFixTxt = sufixNaleFile.substring(sufixNaleFile.lastIndexOf('_') + 1) ;
+			switch (suFixTxt + ".txt") {
+			case "1.txt":
+				documentosDto.setNombreArchivo("Documento de identidad");
+				break;
+			case "2.txt":
+				documentosDto.setNombreArchivo("Certificado de libertad y tradición");
+				break;
+			case "3.txt":
+				documentosDto.setNombreArchivo("Impuesto predial");
+				break;
+			case "4.txt":
+				documentosDto.setNombreArchivo("Certificado de disponibilidad agua");
+				break;
+			case "5.txt":
+				documentosDto.setNombreArchivo("Certificado de disponibilidad energía");
+				break;
+			case "6.txt":
+				documentosDto.setNombreArchivo("Certificado uso del suelo");
+				break;
+			case "7.txt":
+				documentosDto.setNombreArchivo("Certificado de no riesgo");
+				break;
+			case "8.txt":
+				documentosDto.setNombreArchivo("Lista de verificación documental");
+				break;
+			case "9.txt":
+				documentosDto.setNombreArchivo("Copia de la última escritura del predio");
+				break;
+			case "10.txt":
+				documentosDto.setNombreArchivo("Paz y salvo del impuesto predial");
+				break;
+			case "11.txt":
+				documentosDto.setNombreArchivo("Documentos de los vecinos");
+				break;
+			case "12.txt":
+				documentosDto.setNombreArchivo("Notificación a vecinos");
+				break;
+			case "13.txt":
+				documentosDto.setNombreArchivo("Certificado de solicitud de licencia");
+				break;
+			case "14.txt":
+				documentosDto.setNombreArchivo("Poder para solicitud de licencia");
+				break;
+			case "15.txt":
+				documentosDto.setNombreArchivo("Firmar planos y formato notarial");
+				break;
+			case "16.txt":
+				documentosDto.setNombreArchivo("Radicado de la licencia");
+				break;
+			case "17.txt":
+				documentosDto.setNombreArchivo("Certificación de avalúo catastral");
+				break;
+			case "18.txt":
+				documentosDto.setNombreArchivo("Certificación de nomenclatura");
+				break;
+			case "19.txt":
+				documentosDto.setNombreArchivo("Formulario de postulación");
+				break;
+			case "20.txt":
+				documentosDto.setNombreArchivo("Certificado de responsabilidad documental");
+				break;
+			case "21.txt":
+				documentosDto.setNombreArchivo("Formulario de cartilla de especificaciones");
+				break;
+			case "22.txt":
+				documentosDto.setNombreArchivo("Contrato de obra");
+				break;
+			case "23.txt":
+				documentosDto.setNombreArchivo("Contrato de voluntariado");
+				break;
+			case "24.txt":
+				documentosDto.setNombreArchivo("Formulario de declaración jurada");
+				break;				
+			default:
+				documentosDto.setNombreArchivo("");
+				break;
+			}
+			documentosDtoList.add(documentosDto);
+		}
+		return documentosDtoList;
+	}
+	
+	public static List<DocumentosDto> getListaDocumentosModuloAnexos(List<String> documentos) {
+		List<DocumentosDto> documentosDtoList = new ArrayList<>();
+		for (String str : documentos) {
+			DocumentosDto documentosDto = new DocumentosDto();
+			documentosDto.setUrlTxt(str);
+			documentosDto.setNombreArchivo(extraerNombreArchivoSinExtension(str));
+			documentosDtoList.add(documentosDto);
+		}
+		return documentosDtoList;
+	}
+	
+	public static List<DocumentosDto> getListaDocumentosModuloImages(List<String> documentos) {
+		List<DocumentosDto> documentosDtoList = new ArrayList<>();
+		for (String str : documentos) {
+			DocumentosDto documentosDto = new DocumentosDto();
+			documentosDto.setUrlTxt(str);
+			documentosDto.setNombreArchivo("Image_" + extraerNombreArchivoSinExtension(str));
+			documentosDtoList.add(documentosDto);
+		}
+		return documentosDtoList;
+	}
+	
+	public static String extraerNombreArchivoSinExtension(String url) {  
+		String[] partes = url.split("/");  
+		String nombreArchivo = partes.length > 0 ? partes[partes.length - 1] : "";  
+		int indiceUltimoPunto = nombreArchivo.lastIndexOf("."); 
+		if (indiceUltimoPunto > 0) { 
+			nombreArchivo = nombreArchivo.substring(0, indiceUltimoPunto); 
+		} 
+		return nombreArchivo; 
+	}	
+	
+	public static List<BeneficiariosDto> getListaBeneficiarios(List<BeneficiariosApp> beneficiariosList, List<String> documentosModBen) {
+		List<BeneficiariosDto> beneficiariosDtoList = new ArrayList<BeneficiariosDto>();		
+		for (int i = 0; i < beneficiariosList.size(); i++) {				
+			BeneficiariosDto beneficiariosDto = new BeneficiariosDto(beneficiariosList.get(i));			
+			if(beneficiariosList.get(i).isRegistra_doc_pdf()) {				
+				for (String str: documentosModBen) {
+					int posicionUltimoGuionBajo = str.lastIndexOf('_');					
+					String suFixTxt = str.substring(posicionUltimoGuionBajo + 1);					
+					if(suFixTxt.equals(beneficiariosList.get(i).getId_sufix_txt())) {						
+						beneficiariosDto.setDocumentosDto(new DocumentosDto("Documento", str));
+						break;
+					}
+				}				
+			}			
+			beneficiariosDtoList.add(beneficiariosDto);	
+		}
+		return beneficiariosDtoList;
+	}
+
+	public static GenericResponse reporteEventos(IEventosSolicitudesAppService iEventosSolicitudesAppService, EventosSolicitudesApp eventosSolicitudesApp) {
+		boolean estado = true;
+		String mensaje = "";
+		try {
+			iEventosSolicitudesAppService.registraEventoSolicitud(eventosSolicitudesApp);
+			mensaje = EnumConstantes.MSG_SUCCES;
+		} catch (Exception e) {
+			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
+			estado = false;
+			mensaje = EnumConstantes.MSG_FAIL;
+		}
+		return new GenericResponse(estado, mensaje, new GenericResponse());
+	}
+
+	public static GenericResponse registraUsuarioRoot(IUserAppService iUserAppService) {
+		boolean estado = true;
+		String mensaje = "";
+		try {
+			SimpleDateFormat sdfRegistro = new SimpleDateFormat(EnumConstantes.DD_MM_YYYY);
+			SimpleDateFormat sdf = new SimpleDateFormat(EnumConstantes.DD_MM_YYYY_HH_MM_SS);
+			String idProcesamiento = sdf.format(new Date());
+			UserApp userAppRegistro = new UserApp(EnumConstantes.ROOT, PasswordUtil.encodePassword(EnumConstantes.ROOT),
+					EnumConstantes.ROOT, EnumConstantes.ROOT, "CC", "123456789", "root@root.rr",
+					EnumConstantes.ROLE_ROOT, sdfRegistro.format(new Date()), false, idProcesamiento,
+					EnumConstantes.ROOT);
+			iUserAppService.registraUsuarioApp(userAppRegistro);
+			mensaje = EnumConstantes.MSG_REGITRO_ROOT_SUCCES;
+		} catch (Exception e) {
+			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
+			estado = false;
+			mensaje = EnumConstantes.MSG_REGITRO_ROOT_FAIL;
+		}
+		return new GenericResponse(estado, mensaje, new GenericResponse());
+	}
+	
+	public static void crearNotificacionEvento(INotificacionesAppService iNotificacionesAppService) {
+		inicializaNotificacionEvento(EnumConstantes.EVENTO_CREA_SOLICITUD, iNotificacionesAppService);
+		inicializaNotificacionEvento(EnumConstantes.EVENTO_PREAPROBADO, iNotificacionesAppService);
+		inicializaNotificacionEvento(EnumConstantes.EVENTO_NO_PREAPROBADO, iNotificacionesAppService);
+		inicializaNotificacionEvento(EnumConstantes.EVENTO_DEVUELTO_GESTION, iNotificacionesAppService);
+		inicializaNotificacionEvento(EnumConstantes.EVENTO_ASIGNA_A_REVISION, iNotificacionesAppService);
+		inicializaNotificacionEvento(EnumConstantes.EVENTO_ESTUDIO_VIABILIDAD, iNotificacionesAppService);
+		inicializaNotificacionEvento(EnumConstantes.EVENTO_VIABLE, iNotificacionesAppService);
+		inicializaNotificacionEvento(EnumConstantes.EVENTO_NO_VIABLE, iNotificacionesAppService);
+		inicializaNotificacionEvento(EnumConstantes.EVENTO_ENVIADO_POSTULACION, iNotificacionesAppService);
+		inicializaNotificacionEvento(EnumConstantes.EVENTO_OBTENCION_SUBSIDIO, iNotificacionesAppService);
+		inicializaNotificacionEvento(EnumConstantes.EVENTO_DEVUELTO_INGENIERIA, iNotificacionesAppService);		
+	}
+	
+	public static boolean inicializaNotificacionEvento(String nombreEvento, INotificacionesAppService iNotificacionesAppService) {
+		try {
+			List<NotificacionesApp> notificacioneEvento = iNotificacionesAppService.getNotificacionesPorEvento(nombreEvento);
+			if(notificacioneEvento.isEmpty()) {
+				iNotificacionesAppService.registraEventoNotificacion(new NotificacionesApp(nombreEvento, false, ""));
+			}
+			return true;
+		} catch (Exception e) {
+			return false;
+		}
+	}
+	
+	public static <T> String gsonActionsToString(T object) {
+		Gson gson = new Gson();
+		return gson.toJson(object);
+	}
+	
+	public static <T> T gsonActionsToObj(String body, Class<T> clazz) {
+		Gson gson = new Gson();
+		T bodyRq = gson.fromJson(body, clazz);
+		return bodyRq;
+	}
+
+
+}
