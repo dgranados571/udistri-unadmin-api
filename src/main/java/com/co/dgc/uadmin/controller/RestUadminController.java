@@ -152,10 +152,10 @@ public class RestUadminController {
 			solicitudApp.setEvento_actual(body.getNombreOperacion());
 			solicitudApp.setEstado(resultadoOperacion);			
 			switch (body.getNombreOperacion()) {
-			case EnumConstantes.EVENTO_PREAPROBADO:
-				solicitudApp.setCurrent_step(EnumConstantes.STEP_2);
-				break;
 			case EnumConstantes.EVENTO_DEVUELTO_INGENIERIA:
+				solicitudApp.setCurrent_step(EnumConstantes.STEP_1);
+				break;
+			case EnumConstantes.EVENTO_PREAPROBADO:
 				solicitudApp.setCurrent_step(EnumConstantes.STEP_2);
 				break;
 			case EnumConstantes.EVENTO_ESTUDIO_VIABILIDAD:
