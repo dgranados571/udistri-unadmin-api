@@ -154,7 +154,6 @@ public class RestUadminController {
 			switch (body.getNombreOperacion()) {
 			case EnumConstantes.EVENTO_DEVUELTO_INGENIERIA:
 				solicitudApp.setCurrent_step(EnumConstantes.STEP_1);
-				// Es unmensaje de contro completamebnte
 				break;
 			case EnumConstantes.EVENTO_PREAPROBADO:
 				solicitudApp.setCurrent_step(EnumConstantes.STEP_2);
