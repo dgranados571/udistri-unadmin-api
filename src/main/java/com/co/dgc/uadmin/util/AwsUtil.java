@@ -8,6 +8,8 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.amazonaws.services.s3.model.ListObjectsRequest;
+import com.amazonaws.services.s3.model.ObjectListing;
 import com.co.dgc.uadmin.enums.EnumConstantes;
 
 public class AwsUtil {
@@ -23,32 +25,32 @@ public class AwsUtil {
 				if (idSumary.getKey().contains(pathLocal)) {
 					if (idSumary.getKey().contains(procesmientoId)) {
 						s3client.deleteObject(APPDGCBUCKET, idSumary.getKey());
-					} 
+					}
 				}
 			}
 		} catch (Exception e) {
 			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
 		}
 	}
-	
+
 	public static void eliminarDocumentoS3(String procesamientoId, String pathLocal, String indexDocument) {
 		try {
 			List<S3ObjectSummary> fileList = s3client.listObjects(APPDGCBUCKET).getObjectSummaries();
 			for (S3ObjectSummary idSumary : fileList) {
-				if (idSumary.getKey().contains(procesamientoId)) {					
+				if (idSumary.getKey().contains(procesamientoId)) {
 					if (idSumary.getKey().contains(pathLocal)) {
-						if(idSumary.getKey().contains(indexDocument)) {
+						if (idSumary.getKey().contains(indexDocument)) {
 							s3client.deleteObject(APPDGCBUCKET, idSumary.getKey());
 							break;
 						}
-					}	
+					}
 				}
 			}
 		} catch (Exception e) {
 			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
 		}
 	}
-	
+
 	public static void eliminarMasivamenteCarpetasS3(String pathLocal) {
 		try {
 			List<S3ObjectSummary> fileList = s3client.listObjects(APPDGCBUCKET).getObjectSummaries();
@@ -64,19 +66,27 @@ public class AwsUtil {
 
 	public static List<String> listarCarpetasS3(String procesmientoId, String pathLocal, String pathModulo) {
 		List<String> urlImages = new ArrayList<String>();
-		try {
-			List<S3ObjectSummary> fileList = s3client.listObjects(APPDGCBUCKET).getObjectSummaries();
-			for (S3ObjectSummary idSumary : fileList) {
-				if (idSumary.getKey().contains(pathLocal)) {
-					if (idSumary.getKey().contains(procesmientoId) && idSumary.getKey().contains(pathModulo)) {
-						urlImages.add("https://" + APPDGCBUCKET + ".s3.amazonaws.com/" + idSumary.getKey());
+		try {			
+			ObjectListing listing = s3client.listObjects(new ListObjectsRequest().withBucketName(APPDGCBUCKET));
+			while (true) {				
+				for (S3ObjectSummary idSumary : listing.getObjectSummaries()) {					
+					if (idSumary.getKey().contains(pathLocal)) {
+						if (idSumary.getKey().contains(procesmientoId) && idSumary.getKey().contains(pathModulo)) {
+							urlImages.add("https://" + APPDGCBUCKET + ".s3.amazonaws.com/" + idSumary.getKey());							
+						}
 					}
 				}
+				if (!listing.isTruncated()) {
+					break;
+				}
+				listing = s3client.listObjects(
+						new ListObjectsRequest().withBucketName(APPDGCBUCKET).withMarker(listing.getNextMarker()));
 			}
 		} catch (Exception e) {
 			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
 		}
 		return urlImages;
 	}
+
 
 }
