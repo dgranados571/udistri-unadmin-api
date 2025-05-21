@@ -64,17 +64,13 @@ public class AwsUtil {
 		}
 	}
 
-	public static List<String> listarCarpetasS3(String procesmientoId, String pathLocal, String pathModulo) {
+	public static List<String> listarCarpetasS3() {
 		List<String> urlImages = new ArrayList<String>();
 		try {			
 			ObjectListing listing = s3client.listObjects(new ListObjectsRequest().withBucketName(APPDGCBUCKET));
 			while (true) {				
-				for (S3ObjectSummary idSumary : listing.getObjectSummaries()) {					
-					if (idSumary.getKey().contains(pathLocal)) {
-						if (idSumary.getKey().contains(procesmientoId) && idSumary.getKey().contains(pathModulo)) {
-							urlImages.add("https://" + APPDGCBUCKET + ".s3.amazonaws.com/" + idSumary.getKey());							
-						}
-					}
+				for (S3ObjectSummary idSumary : listing.getObjectSummaries()) {				
+					urlImages.add("https://" + APPDGCBUCKET + ".s3.amazonaws.com/" + idSumary.getKey());
 				}
 				if (!listing.isTruncated()) {
 					break;
@@ -84,6 +80,18 @@ public class AwsUtil {
 			}
 		} catch (Exception e) {
 			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
+		}
+		return urlImages;
+	}
+	
+	public static List<String> listarCarpetasS3Filtrada(List<String> urlImagesPre, String procesmientoId, String pathLocal, String pathModulo) {
+		List<String> urlImages = new ArrayList<String>();
+		for(String idUrl:urlImagesPre) {
+			if (idUrl.contains(pathLocal)) {
+				if (idUrl.contains(procesmientoId) && idUrl.contains(pathModulo)) {
+					urlImages.add(idUrl);							
+				}
+			}
 		}
 		return urlImages;
 	}

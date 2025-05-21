@@ -247,8 +247,9 @@ public class RestUadminController {
 		boolean estado = true;
 		String mensaje = "";
 		List<BeneficiariosDto> beneficiariosList = new ArrayList<>();
-		try {			
-			List<String> documentosModBen = AwsUtil.listarCarpetasS3(body.getIdProcesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_BENEFICIARIOS);
+		try {		
+			List<String> documentosBucketS3 =  AwsUtil.listarCarpetasS3();
+			List<String> documentosModBen = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, body.getIdProcesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_BENEFICIARIOS);
 			List<BeneficiariosApp> beneficiariosAppList = iBeneficiariosAppService.getBeneficiariosPorIdProcesamiento(body.getIdProcesamiento());
 			beneficiariosList = UadminAppUtil.getListaBeneficiarios(beneficiariosAppList, documentosModBen);			
 			mensaje = EnumConstantes.MSG_SUCCES_2;
@@ -273,7 +274,10 @@ public class RestUadminController {
 				}
 				iBeneficiariosAppService.eliminarBeneficiarioApp(bApp);
 			}
-			List<String> documentosModBen = AwsUtil.listarCarpetasS3(body.getIdProcesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_BENEFICIARIOS);
+			
+			List<String> documentosBucketS3 =  AwsUtil.listarCarpetasS3();
+			List<String> documentosModBen = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, body.getIdProcesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_BENEFICIARIOS);
+			
 			List<BeneficiariosApp> beneficiariosAppList = iBeneficiariosAppService.getBeneficiariosPorIdProcesamiento(body.getIdProcesamiento());
 			beneficiariosList = UadminAppUtil.getListaBeneficiarios(beneficiariosAppList, documentosModBen);			
 			mensaje = EnumConstantes.MSG_SUCCES_2;
@@ -426,22 +430,24 @@ public class RestUadminController {
 			String DMA = sdfDMA.format(fechaRadicacion);
 			solicitudApp.setFecha_registro(DMA);
 			
-			List<String> documentosMod1 = AwsUtil.listarCarpetasS3(solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_1);
+			List<String> documentosBucketS3 =  AwsUtil.listarCarpetasS3();
+			
+			List<String> documentosMod1 = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_1);
 			urlDocumentsMod1 = UadminAppUtil.getListaDocumentosModuloX(documentosMod1);
 			
-			List<String> documentosMod2 = AwsUtil.listarCarpetasS3(solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_2);
+			List<String> documentosMod2 = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_2);
 			urlDocumentsMod2 = UadminAppUtil.getListaDocumentosModuloX(documentosMod2);
 			
-			List<String> documentosMod3 = AwsUtil.listarCarpetasS3(solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_3);
+			List<String> documentosMod3 = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_3);
 			urlDocumentsMod3 = UadminAppUtil.getListaDocumentosModuloX(documentosMod3);
 			
-			List<String> documentosModAnexos = AwsUtil.listarCarpetasS3(solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_ANEXOS);
+			List<String> documentosModAnexos = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_ANEXOS);
 			urlDocumentsModAnexos = UadminAppUtil.getListaDocumentosModuloAnexos(documentosModAnexos);
 			
-			List<String> urlModImages = AwsUtil.listarCarpetasS3(solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_IMAGES);
+			List<String> urlModImages = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_IMAGES);
 			urlImages = UadminAppUtil.getListaDocumentosModuloImages(urlModImages); 
 			
-			List<String> documentosModBen = AwsUtil.listarCarpetasS3(body.getIdProcesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_BENEFICIARIOS);
+			List<String> documentosModBen = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, body.getIdProcesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_BENEFICIARIOS);
 			List<BeneficiariosApp> beneficiariosAppList = iBeneficiariosAppService.getBeneficiariosPorIdProcesamiento(body.getIdProcesamiento());
 			beneficiariosList = UadminAppUtil.getListaBeneficiarios(beneficiariosAppList, documentosModBen);
 			
