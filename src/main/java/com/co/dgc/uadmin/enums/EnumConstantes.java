@@ -73,9 +73,19 @@ public class EnumConstantes {
 	public static final String STEP_3 = "STEP_3";
 	public static final String STEP_4 = "STEP_4";
 	public static final String STEP_5 = "STEP_5";
+	public static final String STEP_6 = "STEP_6";
+	public static final String STEP_7 = "STEP_7";
+	
+	
+	public static final String EVENTO_ASIGNA_A_REVISION = "EVENTO_ASIGNA_A_REVISION";
+	public static final String RESULT_ASIGNA_A_REVISION = "Asignado a revisor";
+	
+	// FASE 1
 	
 	public static final String EVENTO_CREA_SOLICITUD = "CREA_SOLICITUD";
 	public static final String RESULT_CREA_SOLICITUD = "Solicitud creada";
+	
+	// FASE 2
 	
 	public static final String EVENTO_PREAPROBADO = "EVENTO_PREAPROBADO";
 	public static final String RESULT_PREAPROBADO = "Preaprobado";
@@ -83,29 +93,41 @@ public class EnumConstantes {
 	public static final String EVENTO_NO_PREAPROBADO = "EVENTO_NO_PREAPROBADO";
 	public static final String RESULT_NO_PREAPROBADO = "No preaprobado";
 	
-	public static final String EVENTO_DEVUELTO_GESTION = "EVENTO_DEVUELTO_GESTION";
-	public static final String RESULT_DEVUELTO_GESTION = "Devuelto con observación";
+	public static final String EVENTO_DEVUELTO_GESTION_CREADOR_SOLICITUD = "EVENTO_DEVUELTO_GESTION_CREADOR_SOLICITUD";
+	public static final String RESULT_DEVUELTO_GESTION_CREADOR_SOLICITUD = "Devolución a gestor - creador solicitud";
 	
-	public static final String EVENTO_ASIGNA_A_REVISION = "EVENTO_ASIGNA_A_REVISION";
-	public static final String RESULT_ASIGNA_A_REVISION = "Asignado a revisor";
+	// FASE 3	
 	
 	public static final String EVENTO_ESTUDIO_VIABILIDAD = "EVENTO_ESTUDIO_VIABILIDAD";
-	public static final String RESULT_ESTUDIO_VIABILIDAD = "En viabilidad de estudios técnicos";
+	public static final String RESULT_ESTUDIO_VIABILIDAD = "Viable técnicamente";
 	
-	public static final String EVENTO_VIABLE = "EVENTO_VIABLE";
-	public static final String RESULT_VIABLE = "Viable";
+	public static final String EVENTO_DEVUELTO_GESTION = "EVENTO_DEVUELTO_GESTION";
+	public static final String RESULT_DEVUELTO_GESTION = "Devolución a gestor";
 	
-	public static final String EVENTO_NO_VIABLE = "EVENTO_NO_VIABLE";
-	public static final String RESULT_NO_VIABLE = "No viable";
+	public static final String EVENTO_NO_APROBADO = "EVENTO_NO_APROBADO";
+	public static final String RESULT_NO_APROBADO = "No aprobado";
 	
-	public static final String EVENTO_ENVIADO_POSTULACION = "EVENTO_ENVIADO_POSTULACION";
-	public static final String RESULT_ENVIADO_POSTULACION = "Enviado a postulación";
+	// FASE 4
 	
-	public static final String EVENTO_OBTENCION_SUBSIDIO = "EVENTO_OBTENCION_SUBSIDIO";
-	public static final String RESULT_OBTENCION_SUBSIDIO = "Obtención subsidio";
+	public static final String EVENTO_FACTIBLE_ACTUALIZACION = "EVENTO_FACTIBLE_ACTUALIZACION";
+	public static final String RESULT_FACTIBLE_ACTUALIZACION= "Factible para actualización";
 	
-	public static final String EVENTO_DEVUELTO_INGENIERIA = "EVENTO_DEVUELTO_INGENIERIA";
-	public static final String RESULT_DEVUELTO_INGENIERIA = "Devuelto a ingeniería";	
+	// FASE 5
+	
+	public static final String EVENTO_LICENCIAR = "EVENTO_LICENCIAR";
+	public static final String RESULT_LICENCIAR = "Licenciar";
+	
+	// FASE 6
+	
+	public static final String EVENTO_LICENCIA_SUBSIDIO = "EVENTO_LICENCIA_SUBSIDIO";
+	public static final String RESULT_LICENCIA_SUBSIDIO = "Licencia y Subsidio";
+	
+	// FASE FINAL
+	
+	public static final String EVENTO_VO_BO_SUBSIDIO = "EVENTO_VO_BO_SUBSIDIO";
+	public static final String RESULT_VO_BO_SUBSIDIO = "Vo-Bo Subsidio";
+	
+	
 	
 	public static final String CONTRASENIA_MASCARA = "******";
 	public static final String ERROR_SIMBOLO = "Error --> ";

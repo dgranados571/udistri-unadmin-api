@@ -20,6 +20,7 @@ public class SolicitudAppDto {
 	private List<EventosSolicitudesApp> eventosSolicitud = new ArrayList<>();
 	private String gestionSolicitud;
 	private String diasUltimaActualizacion;
+	private String faseSolicitud;
 
 	public SolicitudAppDto() {
 		super();
@@ -139,6 +140,14 @@ public class SolicitudAppDto {
 
 	public void setDiasUltimaActualizacion(String diasUltimaActualizacion) {
 		this.diasUltimaActualizacion = diasUltimaActualizacion;
+	}
+
+	public String getFaseSolicitud() {
+		return faseSolicitud;
+	}
+
+	public void setFaseSolicitud(String faseSolicitud) {
+		this.faseSolicitud = faseSolicitud;
 	}
 
 }

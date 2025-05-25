@@ -4,6 +4,7 @@ public class RqGetSolicitudesApp {
 	
 	private String usuarioApp;
 	private String nombreFiltro;
+	private String faseFiltro;
 	private String eventoFiltro;
 	private String departamentoFiltro;
 	private String municipioFiltro;
@@ -64,6 +65,14 @@ public class RqGetSolicitudesApp {
 
 	public void setDiasUltimaActualizacionFiltro(String diasUltimaActualizacionFiltro) {
 		this.diasUltimaActualizacionFiltro = diasUltimaActualizacionFiltro;
+	}
+
+	public String getFaseFiltro() {
+		return faseFiltro;
+	}
+
+	public void setFaseFiltro(String faseFiltro) {
+		this.faseFiltro = faseFiltro;
 	}
 	
 }

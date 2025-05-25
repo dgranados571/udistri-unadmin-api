@@ -79,21 +79,6 @@ public class EmailUtil extends Thread {
 		case EnumConstantes.EVENTO_ESTUDIO_VIABILIDAD:
 			cuerpo = plantillaGenerica();
 			break;
-		case EnumConstantes.EVENTO_VIABLE:
-			cuerpo = plantillaViabilidadEstudiosTecnicos();
-			break;
-		case EnumConstantes.EVENTO_NO_VIABLE:
-			cuerpo = plantillaNoViable();
-			break;			
-		case EnumConstantes.EVENTO_ENVIADO_POSTULACION:
-			cuerpo = plantillaGenerica();
-			break;			
-		case EnumConstantes.EVENTO_OBTENCION_SUBSIDIO:
-			cuerpo = plantillaObtencionSubsidio();
-			break;			
-		case EnumConstantes.EVENTO_DEVUELTO_INGENIERIA:
-			cuerpo = plantillaGenerica();
-			break;
 		default:
 			cuerpo = plantillaGenerica();
 			break;

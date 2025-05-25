@@ -96,6 +96,314 @@ public class RestUadminController {
 	@Autowired
 	INotificacionesAppService iNotificacionesAppService;
 	
+	@PostMapping(path = "/ejecutaEventoyEstado", produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody GenericResponse ejecutaEventoYEstadoSolicitud(@RequestBody RqEjecutaEventoyEstado body) {
+		boolean estado = true;
+		String mensaje = "";
+		SimpleDateFormat sdf = new SimpleDateFormat(EnumConstantes.DD_MM_YYYY_HH_MM_SS);
+		try {
+			SolicitudesApp solicitudApp = iSolicitudesAppService.getSolicitudAppPorIdPocesamiento(body.getIdProcesamiento());			
+			String resultadoOperacion = UadminAppUtil.getResultOperation(body.getNombreOperacion());			
+			solicitudApp.setEvento_actual(body.getNombreOperacion());
+			solicitudApp.setEstado(resultadoOperacion);			
+			switch (body.getNombreOperacion()) {
+			case EnumConstantes.EVENTO_PREAPROBADO:
+				solicitudApp.setCurrent_step(EnumConstantes.STEP_2);
+				break;
+			case EnumConstantes.EVENTO_ESTUDIO_VIABILIDAD:
+				solicitudApp.setCurrent_step(EnumConstantes.STEP_3);
+				break;
+			case EnumConstantes.EVENTO_FACTIBLE_ACTUALIZACION:
+				solicitudApp.setCurrent_step(EnumConstantes.STEP_4);
+				break;
+			case EnumConstantes.EVENTO_LICENCIAR:
+				solicitudApp.setCurrent_step(EnumConstantes.STEP_5);
+				break;
+			case EnumConstantes.EVENTO_LICENCIA_SUBSIDIO:
+				solicitudApp.setCurrent_step(EnumConstantes.STEP_6);
+				break;
+			case EnumConstantes.EVENTO_VO_BO_SUBSIDIO:
+				solicitudApp.setCurrent_step(EnumConstantes.STEP_7);
+				break;
+			case EnumConstantes.EVENTO_DEVUELTO_GESTION:
+				if(solicitudApp.getCurrent_step().equals(EnumConstantes.STEP_6)) {
+					solicitudApp.setCurrent_step(EnumConstantes.STEP_4);	
+				}
+				break;
+			default:
+				break;
+			}
+			iSolicitudesAppService.registraSolicitudApp(solicitudApp);			
+			EventosSolicitudesApp eventosSolicitudesApp = new EventosSolicitudesApp(
+					body.getIdProcesamiento(), 
+					sdf.format(new Date()), 
+					body.getUserApp(), 
+					body.getNombreOperacion(), 
+					resultadoOperacion, 
+					body.getObservaciones());
+			UadminAppUtil.reporteEventos(iEventosSolicitudesAppService, eventosSolicitudesApp);			
+			List<NotificacionesApp> notificacionesEvento = iNotificacionesAppService.getNotificacionesPorEvento(body.getNombreOperacion());		
+			if (!notificacionesEvento.isEmpty()) {
+				String correos = notificacionesEvento.get(0).getCorreos_notifica();
+				String[] listaCorreos = correos.split(",\\s*");
+				String idDefSolicitud = UadminAppUtil.getIdDefSolicitud(solicitudApp);
+				if (listaCorreos.length > 0) {
+					String labelDM = UadminAppUtil.obtineLabelDepartamentoMunicipio(solicitudApp.getDepartamento_municipio(), iDepartamentosAppService, iMunicipiosAppService);
+					solicitudApp.setDepartamento_municipio(labelDM);
+					for (String correo : listaCorreos) {						
+						EmailUtil emailUtilThread = new EmailUtil(listaCorreos.length, correo, idDefSolicitud, solicitudApp, body.getNombreOperacion(), resultadoOperacion);
+						emailUtilThread.start();
+					}
+				}
+				if (notificacionesEvento.get(0).isNotifica_usuario()) {					
+					EmailUtil emailUtilThread = new EmailUtil(0, solicitudApp.getCorreo(), idDefSolicitud, solicitudApp, body.getNombreOperacion(), resultadoOperacion);
+					emailUtilThread.start();
+				}
+			}			
+			mensaje = EnumConstantes.MSG_SUCCES_2;
+		} catch (Exception e) {
+			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
+			if (e.getMessage().contains(EnumConstantes.MSG_VALIDA_LONG_DATA_FAIL)) {
+				mensaje = EnumConstantes.MSG_REGITRO_LONG_DATA_FAIL;
+			} else {
+				mensaje = EnumConstantes.MSG_FAIL;
+			}
+			estado = false;
+		}
+		return new GenericResponse(estado, mensaje, null);
+	}
+
+	@PostMapping(path = "/registraSolicitud", produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody GenericResponse registraSolicitud(@RequestBody RqRegistraSolicitud body) {
+		boolean estado = true;
+		String mensaje = "";
+		SimpleDateFormat sdf = new SimpleDateFormat(EnumConstantes.DD_MM_YYYY_HH_MM_SS);
+		Date ya = new Date();
+		String idProcesamiento = sdf.format(ya);
+		try {
+			List<SolicitudesApp> solicitudesAppValida = iSolicitudesAppService.getSolicitudesAppPorNoDocumento(body.getNumeroIdentificacion());
+			if (solicitudesAppValida.isEmpty()) {
+				SolicitudesApp solicitudApp = new SolicitudesApp(body, sdf.format(ya), EnumConstantes.EVENTO_CREA_SOLICITUD, idProcesamiento, EnumConstantes.STEP_1);
+				iSolicitudesAppService.registraSolicitudApp(solicitudApp);
+				if (!body.getBeneficiariosList().isEmpty()) {
+					for (int i = 0; i < body.getBeneficiariosList().size(); i++) {						
+						iBeneficiariosAppService.registraBeneficiarioApp(new BeneficiariosApp(
+								body.getBeneficiariosList().get(i).getNombresBen(),
+								body.getBeneficiariosList().get(i).getApellidosBen(),
+								body.getBeneficiariosList().get(i).getIdentificacionBen(), 
+								body.getBeneficiariosList().get(i).isRegistraDocPdf(), 
+								idProcesamiento, i +".txt"));
+					}
+				}
+				EventosSolicitudesApp eventosSolicitudesApp = new EventosSolicitudesApp(idProcesamiento, sdf.format(ya), "", 
+						EnumConstantes.EVENTO_CREA_SOLICITUD, 
+						EnumConstantes.RESULT_CREA_SOLICITUD, 
+						body.getDescripcion());
+				UadminAppUtil.reporteEventos(iEventosSolicitudesAppService, eventosSolicitudesApp);
+				mensaje = EnumConstantes.MSG_REGITRO_SOLICITUD_SUCCES;
+			} else {
+				mensaje = EnumConstantes.MSG_REGITRO_SOLICITUD_FAIL_EXISTE;
+				estado = false;
+			}
+		} catch (Exception e) {
+			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
+			if (e.getMessage().contains(EnumConstantes.MSG_VALIDA_LONG_DATA_FAIL)) {
+				mensaje = EnumConstantes.MSG_REGITRO_LONG_DATA_FAIL;
+			} else {
+				mensaje = EnumConstantes.MSG_REGITRO_SOLICITUD_FAIL;
+			}
+			estado = false;
+		}
+		return new GenericResponse(estado, mensaje, idProcesamiento);
+	}
+
+	@PostMapping(path = "/getSolicitudesApp", produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody GenericResponse getSolicitudesApp(@RequestBody RqGetSolicitudesApp body) {
+		boolean estado = true;
+		String mensaje = "";		
+		SimpleDateFormat sdfComplete = new SimpleDateFormat(EnumConstantes.DD_MM_YYYY_HH_MM_SS);
+		SimpleDateFormat sdfDMA = new SimpleDateFormat(EnumConstantes.DD_MM_YYYY);
+		List<SolicitudesApp> listaSolicitudesApp = new ArrayList<>();
+		List<SolicitudAppDto> listaSolicitudesAppDto = new ArrayList<>();
+		int totalElementos = 0;
+		try {
+			listaSolicitudesApp = iSolicitudesAppService.listaSolicitudesApp();
+			
+			if (!body.getEventoFiltro().equals("INITIAL")) {
+				listaSolicitudesApp = iSolicitudesAppService.getSolicitudesAppPorEventoSolicitud(body.getEventoFiltro());
+			}
+			if (!body.getNombreFiltro().isEmpty()) {
+				if (!body.getEventoFiltro().equals("INITIAL")) {
+					listaSolicitudesApp = iSolicitudesAppService.getSolicitudesAppPorEventoSolicitudYNoDocumento(body.getEventoFiltro(), body.getNombreFiltro());
+				} else {
+					listaSolicitudesApp = iSolicitudesAppService.getSolicitudesAppContieneNoDocumento(body.getNombreFiltro());
+				}
+			}
+			
+			if (!body.getFaseFiltro().equals("INITIAL")) {
+				listaSolicitudesApp = UadminAppUtil.listaSolicitudesFiltroFase(listaSolicitudesApp, body.getFaseFiltro());
+			}
+			
+			if(!body.getDepartamentoFiltro().equals("INITIAL")) {				
+				listaSolicitudesApp = UadminAppUtil.listaSolicitudesFiltroDepartamento(listaSolicitudesApp, body.getDepartamentoFiltro());
+			}
+			if(!body.getMunicipioFiltro().equals("INITIAL")) {				
+				listaSolicitudesApp = UadminAppUtil.listaSolicitudesFiltroMunicipio(listaSolicitudesApp, body.getMunicipioFiltro());
+			}
+			if(!body.getDiasUltimaActualizacionFiltro().equals("INITIAL")) {
+				listaSolicitudesApp = UadminAppUtil.listaSolicitudesFiltroDiasUltimaActualizacion(listaSolicitudesApp, body.getDiasUltimaActualizacionFiltro(), iEventosSolicitudesAppService);
+			}
+			totalElementos = listaSolicitudesApp.size();
+			listaSolicitudesAppDto = UadminAppUtil.listaSolicitudesAppDtoPaginada(listaSolicitudesApp, body.getElementosPorPagina(), body.getPaginaActual());
+			
+			for (SolicitudAppDto idSolicitud : listaSolicitudesAppDto) {
+				
+				Date fechaRadicacion = sdfComplete.parse(idSolicitud.getSolicitud().getFecha_registro());
+				String DMA = sdfDMA.format(fechaRadicacion);
+				idSolicitud.getSolicitud().setFecha_registro(DMA);
+				
+				String labelDM = UadminAppUtil.obtineLabelDepartamentoMunicipio(idSolicitud.getSolicitud().getDepartamento_municipio(), iDepartamentosAppService, iMunicipiosAppService);
+				idSolicitud.getSolicitud().setDepartamento_municipio(labelDM);
+				
+				long diasUltimaActualizacion = UadminAppUtil.obtieneDiasUltimaActualizacion(idSolicitud.getSolicitud().getId_procesamiento(), iEventosSolicitudesAppService);
+				idSolicitud.setDiasUltimaActualizacion(diasUltimaActualizacion + " dias");
+				
+				idSolicitud.setFaseSolicitud(UadminAppUtil.obtencionFasePorStep(idSolicitud.getSolicitud().getCurrent_step()));
+			}
+			mensaje = EnumConstantes.MSG_SUCCES;
+		} catch (Exception e) {
+			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
+			estado = false;
+			mensaje = EnumConstantes.MSG_FAIL;
+		}
+		return new GenericResponse(estado, mensaje, new SolicitudesAppDto(listaSolicitudesAppDto, totalElementos));
+	}
+
+	@PostMapping(path = "/getSolicitudApp", produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody GenericResponse getSolicitudApp(@RequestBody RqGetSolicitudApp body) {	
+		boolean estado = true;
+		String mensaje = "";
+		SimpleDateFormat sdfComplete = new SimpleDateFormat(EnumConstantes.DD_MM_YYYY_HH_MM_SS);
+		SimpleDateFormat sdfDMA = new SimpleDateFormat(EnumConstantes.DD_MM_YYYY);
+		String idDefSolicitud = "";
+		String labelDM = "";
+		SolicitudesApp solicitudApp = null;
+		List<DocumentosDto> urlDocumentsMod1 = new ArrayList<>();
+		List<DocumentosDto> urlDocumentsMod2 = new ArrayList<>();
+		List<DocumentosDto> urlDocumentsMod3 = new ArrayList<>();
+		List<DocumentosDto> urlDocumentsModAnexos = new ArrayList<>();
+		List<DocumentosDto> urlImages = new ArrayList<>();
+		List<BeneficiariosDto> beneficiariosList = new ArrayList<>();
+		List<EventosSolicitudesApp> eventosSolicitud = new ArrayList<>();
+		String gestionSolicitud = "";
+		try {
+			solicitudApp = iSolicitudesAppService.getSolicitudAppPorIdPocesamiento(body.getIdProcesamiento());			
+			idDefSolicitud = UadminAppUtil.getIdDefSolicitud(solicitudApp);
+			
+			labelDM = UadminAppUtil.obtineLabelDepartamentoMunicipio(solicitudApp.getDepartamento_municipio(), iDepartamentosAppService, iMunicipiosAppService);
+			
+			Date fechaRadicacion = sdfComplete.parse(solicitudApp.getFecha_registro());
+			String DMA = sdfDMA.format(fechaRadicacion);
+			solicitudApp.setFecha_registro(DMA);
+			
+			List<String> documentosBucketS3 =  AwsUtil.listarCarpetasS3();
+			
+			List<String> documentosMod1 = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_1);
+			urlDocumentsMod1 = UadminAppUtil.getListaDocumentosModuloX(documentosMod1);
+			
+			List<String> documentosMod2 = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_2);
+			urlDocumentsMod2 = UadminAppUtil.getListaDocumentosModuloX(documentosMod2);
+			
+			List<String> documentosMod3 = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_3);
+			urlDocumentsMod3 = UadminAppUtil.getListaDocumentosModuloX(documentosMod3);
+			
+			List<String> documentosModAnexos = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_ANEXOS);
+			urlDocumentsModAnexos = UadminAppUtil.getListaDocumentosModuloAnexos(documentosModAnexos);
+			
+			List<String> urlModImages = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_IMAGES);
+			urlImages = UadminAppUtil.getListaDocumentosModuloImages(urlModImages); 
+			
+			List<String> documentosModBen = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, body.getIdProcesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_BENEFICIARIOS);
+			List<BeneficiariosApp> beneficiariosAppList = iBeneficiariosAppService.getBeneficiariosPorIdProcesamiento(body.getIdProcesamiento());
+			beneficiariosList = UadminAppUtil.getListaBeneficiarios(beneficiariosAppList, documentosModBen);
+			
+			eventosSolicitud = iEventosSolicitudesAppService.getESAPorIdProcesamiento(body.getIdProcesamiento());			
+			for(EventosSolicitudesApp idEvent: eventosSolicitud) {
+				Date dateEventFromat = sdfComplete.parse(idEvent.getFecha_evento());
+				String fechaEvento = sdfDMA.format(dateEventFromat);
+				idEvent.setFecha_evento(fechaEvento);
+			}
+			
+			UserApp userAPP = iUserAppService.obtieneUsuarioAPPporUsuario(body.getUsuarioApp());
+			gestionSolicitud = UadminAppUtil.obtencionModuloDeGestion(solicitudApp.getCurrent_step(), userAPP.getRole());
+			mensaje = EnumConstantes.MSG_SUCCES;
+		} catch (Exception e) {
+			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
+			estado = false;
+			mensaje = EnumConstantes.MSG_FAIL;
+		}
+		return new GenericResponse(estado, mensaje,
+				new SolicitudAppDto(idDefSolicitud, labelDM, solicitudApp, urlDocumentsMod1, urlDocumentsMod2, urlDocumentsMod3,
+						urlDocumentsModAnexos, urlImages, beneficiariosList, eventosSolicitud, gestionSolicitud, "0"));
+	}
+	
+	@PostMapping(path = "/actualizaSolicitud", produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody GenericResponse actualizaSolicitud(@RequestBody RqActualizaSolicitud body) {
+		boolean estado = true;
+		String mensaje = "";
+		try {
+			SolicitudesApp solicitudesAppEdita = iSolicitudesAppService.getSolicitudAppPorIdPocesamiento(body.getIdProcesamiento());
+			if (!solicitudesAppEdita.getNumero_identificacion().equals(body.getNumeroIdentificacion())) {
+				List<SolicitudesApp> solicitudesAppValida = iSolicitudesAppService.getSolicitudesAppPorNoDocumento(body.getNumeroIdentificacion());
+				if (solicitudesAppValida.isEmpty()) {
+					solicitudesAppEdita.setNombres(body.getNombres());
+					solicitudesAppEdita.setApellidos(body.getApellidos());
+					solicitudesAppEdita.setNumero_identificacion(body.getNumeroIdentificacion());
+					solicitudesAppEdita.setCorreo(body.getCorreo());
+					solicitudesAppEdita.setTelefono(body.getTelefono());
+					solicitudesAppEdita.setMatricula_inmobiliaria(body.getMatriculaInmobiliaria());
+					solicitudesAppEdita.setDepartamento_municipio(body.getMunicipio());
+					iSolicitudesAppService.registraSolicitudApp(solicitudesAppEdita);
+					mensaje = EnumConstantes.MSG_ACTUALIZA_SOLICITUD_SUCCES;
+				} else {
+					mensaje = EnumConstantes.MSG_REGITRO_SOLICITUD_FAIL_EXISTE;
+					estado = false;
+				}
+			} else {
+				solicitudesAppEdita.setNombres(body.getNombres());
+				solicitudesAppEdita.setApellidos(body.getApellidos());
+				solicitudesAppEdita.setCorreo(body.getCorreo());
+				solicitudesAppEdita.setTelefono(body.getTelefono());
+				solicitudesAppEdita.setMatricula_inmobiliaria(body.getMatriculaInmobiliaria());
+				solicitudesAppEdita.setDepartamento_municipio(body.getMunicipio());
+				iSolicitudesAppService.registraSolicitudApp(solicitudesAppEdita);
+				mensaje = EnumConstantes.MSG_ACTUALIZA_SOLICITUD_SUCCES;
+			}
+		} catch (Exception e) {
+			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
+			mensaje = EnumConstantes.MSG_ACTUALIZA_SOLICITUD_FAIL;
+			estado = false;
+		}
+		return new GenericResponse(estado, mensaje, null);
+	}
+	
+	@PostMapping(path = "/eliminaRegistroS3", produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody GenericResponse eliminaRegistroS3(@RequestBody RqEliminaRegistroS3 body) {
+		boolean estado = true;
+		String mensaje = "";
+		try {
+			String strTxt = body.getUrlTxt();
+			String sufixTxt = UadminAppUtil.extraerNombreArchivoSinExtension(strTxt);
+			AwsUtil.eliminarDocumentoS3(body.getIdProcesamiento(), body.getModuloS3(), sufixTxt);			
+			mensaje = EnumConstantes.MSG_SUCCES_2;
+		} catch (Exception e) {
+			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
+			mensaje = EnumConstantes.MSG_FAIL;
+			estado = false;
+		}
+		return new GenericResponse(estado, mensaje, null);
+	}
+	
 	@PostMapping(path = "/actualizaConfiguracionEnvioNotificaciones", produces = MediaType.APPLICATION_JSON_VALUE)
 	public @ResponseBody GenericResponse actualizaConfiguracionEnvioNotificaciones(@RequestBody RqActualizaNotificacionesEventos body) {
 		boolean estado = true;
@@ -139,75 +447,6 @@ public class RestUadminController {
 			estado = false;
 		}
 		return new GenericResponse(estado, mensaje, notificacionesListDto);
-	}
-	
-	@PostMapping(path = "/ejecutaEventoyEstado", produces = MediaType.APPLICATION_JSON_VALUE)
-	public @ResponseBody GenericResponse ejecutaEventoYEstadoSolicitud(@RequestBody RqEjecutaEventoyEstado body) {
-		boolean estado = true;
-		String mensaje = "";
-		SimpleDateFormat sdf = new SimpleDateFormat(EnumConstantes.DD_MM_YYYY_HH_MM_SS);
-		try {
-			SolicitudesApp solicitudApp = iSolicitudesAppService.getSolicitudAppPorIdPocesamiento(body.getIdProcesamiento());			
-			String resultadoOperacion = UadminAppUtil.getResultOperation(body.getNombreOperacion());			
-			solicitudApp.setEvento_actual(body.getNombreOperacion());
-			solicitudApp.setEstado(resultadoOperacion);			
-			switch (body.getNombreOperacion()) {
-			case EnumConstantes.EVENTO_DEVUELTO_INGENIERIA:
-				solicitudApp.setCurrent_step(EnumConstantes.STEP_1);
-				break;
-			case EnumConstantes.EVENTO_PREAPROBADO:
-				solicitudApp.setCurrent_step(EnumConstantes.STEP_2);
-				break;
-			case EnumConstantes.EVENTO_ESTUDIO_VIABILIDAD:
-				solicitudApp.setCurrent_step(EnumConstantes.STEP_3);
-				break;
-			case EnumConstantes.EVENTO_VIABLE:
-				solicitudApp.setCurrent_step(EnumConstantes.STEP_4);
-				break;
-			case EnumConstantes.EVENTO_ENVIADO_POSTULACION:
-				solicitudApp.setCurrent_step(EnumConstantes.STEP_5);
-				break;
-			default:
-				break;
-			}
-			iSolicitudesAppService.registraSolicitudApp(solicitudApp);			
-			EventosSolicitudesApp eventosSolicitudesApp = new EventosSolicitudesApp(
-					body.getIdProcesamiento(), 
-					sdf.format(new Date()), 
-					body.getUserApp(), 
-					body.getNombreOperacion(), 
-					resultadoOperacion, 
-					body.getObservaciones());
-			UadminAppUtil.reporteEventos(iEventosSolicitudesAppService, eventosSolicitudesApp);			
-			List<NotificacionesApp> notificacionesEvento = iNotificacionesAppService.getNotificacionesPorEvento(body.getNombreOperacion());		
-			if (!notificacionesEvento.isEmpty()) {
-				String correos = notificacionesEvento.get(0).getCorreos_notifica();
-				String[] listaCorreos = correos.split(",\\s*");
-				String idDefSolicitud = UadminAppUtil.getIdDefSolicitud(solicitudApp);
-				if (listaCorreos.length > 0) {
-					String labelDM = UadminAppUtil.obtineLabelDepartamentoMunicipio(solicitudApp.getDepartamento_municipio(), iDepartamentosAppService, iMunicipiosAppService);
-					solicitudApp.setDepartamento_municipio(labelDM);
-					for (String correo : listaCorreos) {						
-						EmailUtil emailUtilThread = new EmailUtil(listaCorreos.length, correo, idDefSolicitud, solicitudApp, body.getNombreOperacion(), resultadoOperacion);
-						emailUtilThread.start();
-					}
-				}
-				if (notificacionesEvento.get(0).isNotifica_usuario()) {					
-					EmailUtil emailUtilThread = new EmailUtil(0, solicitudApp.getCorreo(), idDefSolicitud, solicitudApp, body.getNombreOperacion(), resultadoOperacion);
-					emailUtilThread.start();
-				}
-			}			
-			mensaje = EnumConstantes.MSG_SUCCES_2;
-		} catch (Exception e) {
-			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
-			if (e.getMessage().contains(EnumConstantes.MSG_VALIDA_LONG_DATA_FAIL)) {
-				mensaje = EnumConstantes.MSG_REGITRO_LONG_DATA_FAIL;
-			} else {
-				mensaje = EnumConstantes.MSG_FAIL;
-			}
-			estado = false;
-		}
-		return new GenericResponse(estado, mensaje, null);
 	}
 	
 	@PostMapping(path = "/registraBeneficiarioSolicitud", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -287,250 +526,6 @@ public class RestUadminController {
 			estado = false;
 		}
 		return new GenericResponse(estado, mensaje, beneficiariosList);
-	}
-	
-	@PostMapping(path = "/eliminaRegistroS3", produces = MediaType.APPLICATION_JSON_VALUE)
-	public @ResponseBody GenericResponse eliminaRegistroS3(@RequestBody RqEliminaRegistroS3 body) {
-		boolean estado = true;
-		String mensaje = "";
-		try {
-			String strTxt = body.getUrlTxt();
-			String sufixTxt = UadminAppUtil.extraerNombreArchivoSinExtension(strTxt);
-			AwsUtil.eliminarDocumentoS3(body.getIdProcesamiento(), body.getModuloS3(), sufixTxt);			
-			mensaje = EnumConstantes.MSG_SUCCES_2;
-		} catch (Exception e) {
-			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
-			mensaje = EnumConstantes.MSG_FAIL;
-			estado = false;
-		}
-		return new GenericResponse(estado, mensaje, null);
-	}
-
-	@PostMapping(path = "/registraSolicitud", produces = MediaType.APPLICATION_JSON_VALUE)
-	public @ResponseBody GenericResponse registraSolicitud(@RequestBody RqRegistraSolicitud body) {
-		boolean estado = true;
-		String mensaje = "";
-		SimpleDateFormat sdf = new SimpleDateFormat(EnumConstantes.DD_MM_YYYY_HH_MM_SS);
-		Date ya = new Date();
-		String idProcesamiento = sdf.format(ya);
-		try {
-			List<SolicitudesApp> solicitudesAppValida = iSolicitudesAppService.getSolicitudesAppPorNoDocumento(body.getNumeroIdentificacion());
-			if (solicitudesAppValida.isEmpty()) {
-				SolicitudesApp solicitudApp = new SolicitudesApp(body, sdf.format(ya), EnumConstantes.EVENTO_CREA_SOLICITUD, idProcesamiento, EnumConstantes.STEP_1);
-				iSolicitudesAppService.registraSolicitudApp(solicitudApp);
-				if (!body.getBeneficiariosList().isEmpty()) {
-					for (int i = 0; i < body.getBeneficiariosList().size(); i++) {						
-						iBeneficiariosAppService.registraBeneficiarioApp(new BeneficiariosApp(
-								body.getBeneficiariosList().get(i).getNombresBen(),
-								body.getBeneficiariosList().get(i).getApellidosBen(),
-								body.getBeneficiariosList().get(i).getIdentificacionBen(), 
-								body.getBeneficiariosList().get(i).isRegistraDocPdf(), 
-								idProcesamiento, i +".txt"));
-					}
-				}
-				EventosSolicitudesApp eventosSolicitudesApp = new EventosSolicitudesApp(idProcesamiento, sdf.format(ya), "", 
-						EnumConstantes.EVENTO_CREA_SOLICITUD, 
-						EnumConstantes.RESULT_CREA_SOLICITUD, 
-						body.getDescripcion());
-				UadminAppUtil.reporteEventos(iEventosSolicitudesAppService, eventosSolicitudesApp);
-				mensaje = EnumConstantes.MSG_REGITRO_SOLICITUD_SUCCES;
-			} else {
-				mensaje = EnumConstantes.MSG_REGITRO_SOLICITUD_FAIL_EXISTE;
-				estado = false;
-			}
-		} catch (Exception e) {
-			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
-			if (e.getMessage().contains(EnumConstantes.MSG_VALIDA_LONG_DATA_FAIL)) {
-				mensaje = EnumConstantes.MSG_REGITRO_LONG_DATA_FAIL;
-			} else {
-				mensaje = EnumConstantes.MSG_REGITRO_SOLICITUD_FAIL;
-			}
-			estado = false;
-		}
-		return new GenericResponse(estado, mensaje, idProcesamiento);
-	}
-
-	@PostMapping(path = "/getSolicitudesApp", produces = MediaType.APPLICATION_JSON_VALUE)
-	public @ResponseBody GenericResponse getSolicitudesApp(@RequestBody RqGetSolicitudesApp body) {
-		boolean estado = true;
-		String mensaje = "";		
-		SimpleDateFormat sdfComplete = new SimpleDateFormat(EnumConstantes.DD_MM_YYYY_HH_MM_SS);
-		SimpleDateFormat sdfDMA = new SimpleDateFormat(EnumConstantes.DD_MM_YYYY);
-		List<SolicitudesApp> listaSolicitudesApp = new ArrayList<>();
-		List<SolicitudAppDto> listaSolicitudesAppDto = new ArrayList<>();
-		int totalElementos = 0;
-		try {
-			listaSolicitudesApp = iSolicitudesAppService.listaSolicitudesApp();
-			if (!body.getEventoFiltro().equals("INITIAL")) {
-				listaSolicitudesApp = iSolicitudesAppService.getSolicitudesAppPorEventoSolicitud(body.getEventoFiltro());
-			}
-			if (!body.getNombreFiltro().isEmpty()) {
-				if (!body.getEventoFiltro().equals("INITIAL")) {
-					listaSolicitudesApp = iSolicitudesAppService.getSolicitudesAppPorEventoSolicitudYNoDocumento(body.getEventoFiltro(), body.getNombreFiltro());
-				} else {
-					listaSolicitudesApp = iSolicitudesAppService.getSolicitudesAppContieneNoDocumento(body.getNombreFiltro());
-				}
-			} 
-			if(!body.getDepartamentoFiltro().equals("INITIAL")) {				
-				listaSolicitudesApp = UadminAppUtil.listaSolicitudesFiltroDepartamento(listaSolicitudesApp, body.getDepartamentoFiltro());
-			}
-			if(!body.getMunicipioFiltro().equals("INITIAL")) {				
-				listaSolicitudesApp = UadminAppUtil.listaSolicitudesFiltroMunicipio(listaSolicitudesApp, body.getMunicipioFiltro());
-			}
-			if(!body.getDiasUltimaActualizacionFiltro().equals("INITIAL")) {
-				listaSolicitudesApp = UadminAppUtil.listaSolicitudesFiltroDiasUltimaActualizacion(listaSolicitudesApp, body.getDiasUltimaActualizacionFiltro(), iEventosSolicitudesAppService);
-			}
-			totalElementos = listaSolicitudesApp.size();
-			listaSolicitudesAppDto = UadminAppUtil.listaSolicitudesAppDtoPaginada(listaSolicitudesApp, body.getElementosPorPagina(), body.getPaginaActual());
-			for (SolicitudAppDto idSolicitud : listaSolicitudesAppDto) {
-				
-				Date fechaRadicacion = sdfComplete.parse(idSolicitud.getSolicitud().getFecha_registro());
-				String DMA = sdfDMA.format(fechaRadicacion);
-				idSolicitud.getSolicitud().setFecha_registro(DMA);
-				
-				String labelDM = UadminAppUtil.obtineLabelDepartamentoMunicipio(idSolicitud.getSolicitud().getDepartamento_municipio(), iDepartamentosAppService, iMunicipiosAppService);
-				idSolicitud.getSolicitud().setDepartamento_municipio(labelDM);
-				
-				long diasUltimaActualizacion = UadminAppUtil.obtieneDiasUltimaActualizacion(idSolicitud.getSolicitud().getId_procesamiento(), iEventosSolicitudesAppService);
-				idSolicitud.setDiasUltimaActualizacion(diasUltimaActualizacion + " dias");
-			}
-			mensaje = EnumConstantes.MSG_SUCCES;
-		} catch (Exception e) {
-			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
-			estado = false;
-			mensaje = EnumConstantes.MSG_FAIL;
-		}
-		return new GenericResponse(estado, mensaje, new SolicitudesAppDto(listaSolicitudesAppDto, totalElementos));
-	}
-
-	@PostMapping(path = "/getSolicitudApp", produces = MediaType.APPLICATION_JSON_VALUE)
-	public @ResponseBody GenericResponse getSolicitudApp(@RequestBody RqGetSolicitudApp body) {	
-		boolean estado = true;
-		String mensaje = "";
-		SimpleDateFormat sdfComplete = new SimpleDateFormat(EnumConstantes.DD_MM_YYYY_HH_MM_SS);
-		SimpleDateFormat sdfDMA = new SimpleDateFormat(EnumConstantes.DD_MM_YYYY);
-		String idDefSolicitud = "";
-		String labelDM = "";
-		SolicitudesApp solicitudApp = null;
-		List<DocumentosDto> urlDocumentsMod1 = new ArrayList<>();
-		List<DocumentosDto> urlDocumentsMod2 = new ArrayList<>();
-		List<DocumentosDto> urlDocumentsMod3 = new ArrayList<>();
-		List<DocumentosDto> urlDocumentsModAnexos = new ArrayList<>();
-		List<DocumentosDto> urlImages = new ArrayList<>();
-		List<BeneficiariosDto> beneficiariosList = new ArrayList<>();
-		List<EventosSolicitudesApp> eventosSolicitud = new ArrayList<>();
-		String gestionSolicitud = "";
-		try {
-			solicitudApp = iSolicitudesAppService.getSolicitudAppPorIdPocesamiento(body.getIdProcesamiento());			
-			idDefSolicitud = UadminAppUtil.getIdDefSolicitud(solicitudApp);
-			
-			labelDM = UadminAppUtil.obtineLabelDepartamentoMunicipio(solicitudApp.getDepartamento_municipio(), iDepartamentosAppService, iMunicipiosAppService);
-			
-			Date fechaRadicacion = sdfComplete.parse(solicitudApp.getFecha_registro());
-			String DMA = sdfDMA.format(fechaRadicacion);
-			solicitudApp.setFecha_registro(DMA);
-			
-			List<String> documentosBucketS3 =  AwsUtil.listarCarpetasS3();
-			
-			List<String> documentosMod1 = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_1);
-			urlDocumentsMod1 = UadminAppUtil.getListaDocumentosModuloX(documentosMod1);
-			
-			List<String> documentosMod2 = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_2);
-			urlDocumentsMod2 = UadminAppUtil.getListaDocumentosModuloX(documentosMod2);
-			
-			List<String> documentosMod3 = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_3);
-			urlDocumentsMod3 = UadminAppUtil.getListaDocumentosModuloX(documentosMod3);
-			
-			List<String> documentosModAnexos = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_ANEXOS);
-			urlDocumentsModAnexos = UadminAppUtil.getListaDocumentosModuloAnexos(documentosModAnexos);
-			
-			List<String> urlModImages = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, solicitudApp.getId_procesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_MOD_IMAGES);
-			urlImages = UadminAppUtil.getListaDocumentosModuloImages(urlModImages); 
-			
-			List<String> documentosModBen = AwsUtil.listarCarpetasS3Filtrada(documentosBucketS3, body.getIdProcesamiento(), EnumConstantes.DIR_FILES_AWS, EnumConstantes.DIR_FILES_BENEFICIARIOS);
-			List<BeneficiariosApp> beneficiariosAppList = iBeneficiariosAppService.getBeneficiariosPorIdProcesamiento(body.getIdProcesamiento());
-			beneficiariosList = UadminAppUtil.getListaBeneficiarios(beneficiariosAppList, documentosModBen);
-			
-			eventosSolicitud = iEventosSolicitudesAppService.getESAPorIdProcesamiento(body.getIdProcesamiento());			
-			for(EventosSolicitudesApp idEvent: eventosSolicitud) {
-				Date dateEventFromat = sdfComplete.parse(idEvent.getFecha_evento());
-				String fechaEvento = sdfDMA.format(dateEventFromat);
-				idEvent.setFecha_evento(fechaEvento);
-			}
-			
-			UserApp userAPP = iUserAppService.obtieneUsuarioAPPporUsuario(body.getUsuarioApp());
-			if (userAPP.getRole().equals(EnumConstantes.ROLE_1) || userAPP.getRole().equals(EnumConstantes.ROLE_3)) {
-				gestionSolicitud = "MODULO_0";
-			} else if (userAPP.getRole().equals(EnumConstantes.ROLE_2)) {				
-				switch (solicitudApp.getCurrent_step()) {
-				case EnumConstantes.STEP_1:
-					gestionSolicitud = "MODULO_1";
-					break;
-				case EnumConstantes.STEP_2:
-					gestionSolicitud = "MODULO_2";					
-					break;
-				case EnumConstantes.STEP_3:
-					gestionSolicitud = "MODULO_3";					
-					break;
-				case EnumConstantes.STEP_4:
-					gestionSolicitud = "MODULO_4";					
-					break;
-				case EnumConstantes.STEP_5:
-					gestionSolicitud = "MODULO_5";					
-					break;
-				default:
-					break;
-				}
-			}		
-			mensaje = EnumConstantes.MSG_SUCCES;
-		} catch (Exception e) {
-			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
-			estado = false;
-			mensaje = EnumConstantes.MSG_FAIL;
-		}
-		return new GenericResponse(estado, mensaje,
-				new SolicitudAppDto(idDefSolicitud, labelDM, solicitudApp, urlDocumentsMod1, urlDocumentsMod2, urlDocumentsMod3,
-						urlDocumentsModAnexos, urlImages, beneficiariosList, eventosSolicitud, gestionSolicitud, "0"));
-	}
-	
-	@PostMapping(path = "/actualizaSolicitud", produces = MediaType.APPLICATION_JSON_VALUE)
-	public @ResponseBody GenericResponse actualizaSolicitud(@RequestBody RqActualizaSolicitud body) {
-		boolean estado = true;
-		String mensaje = "";
-		try {
-			SolicitudesApp solicitudesAppEdita = iSolicitudesAppService.getSolicitudAppPorIdPocesamiento(body.getIdProcesamiento());
-			if (!solicitudesAppEdita.getNumero_identificacion().equals(body.getNumeroIdentificacion())) {
-				List<SolicitudesApp> solicitudesAppValida = iSolicitudesAppService.getSolicitudesAppPorNoDocumento(body.getNumeroIdentificacion());
-				if (solicitudesAppValida.isEmpty()) {
-					solicitudesAppEdita.setNombres(body.getNombres());
-					solicitudesAppEdita.setApellidos(body.getApellidos());
-					solicitudesAppEdita.setNumero_identificacion(body.getNumeroIdentificacion());
-					solicitudesAppEdita.setCorreo(body.getCorreo());
-					solicitudesAppEdita.setTelefono(body.getTelefono());
-					solicitudesAppEdita.setMatricula_inmobiliaria(body.getMatriculaInmobiliaria());
-					solicitudesAppEdita.setDepartamento_municipio(body.getMunicipio());
-					iSolicitudesAppService.registraSolicitudApp(solicitudesAppEdita);
-					mensaje = EnumConstantes.MSG_ACTUALIZA_SOLICITUD_SUCCES;
-				} else {
-					mensaje = EnumConstantes.MSG_REGITRO_SOLICITUD_FAIL_EXISTE;
-					estado = false;
-				}
-			} else {
-				solicitudesAppEdita.setNombres(body.getNombres());
-				solicitudesAppEdita.setApellidos(body.getApellidos());
-				solicitudesAppEdita.setCorreo(body.getCorreo());
-				solicitudesAppEdita.setTelefono(body.getTelefono());
-				solicitudesAppEdita.setMatricula_inmobiliaria(body.getMatriculaInmobiliaria());
-				solicitudesAppEdita.setDepartamento_municipio(body.getMunicipio());
-				iSolicitudesAppService.registraSolicitudApp(solicitudesAppEdita);
-				mensaje = EnumConstantes.MSG_ACTUALIZA_SOLICITUD_SUCCES;
-			}
-		} catch (Exception e) {
-			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
-			mensaje = EnumConstantes.MSG_ACTUALIZA_SOLICITUD_FAIL;
-			estado = false;
-		}
-		return new GenericResponse(estado, mensaje, null);
 	}
 	
 	@PostMapping(path = "/controlRegistroBeneficiarios", produces = MediaType.APPLICATION_JSON_VALUE)

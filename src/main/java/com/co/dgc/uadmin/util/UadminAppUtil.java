@@ -26,21 +26,108 @@ import com.co.dgc.uadmin.services.IUserAppService;
 import com.google.gson.Gson;
 
 public class UadminAppUtil {
+	
+	public static String obtencionModuloDeGestion(String step, String role) {
 		
-	public static List<SolicitudAppDto> listaSolicitudesAppDtoPaginada(List<SolicitudesApp> listaSolicitudesApp, int elementosPorPagina, int paginaActual) {
+		String gestionSolicitud = "";
+		if (role.equals(EnumConstantes.ROLE_1) || role.equals(EnumConstantes.ROLE_3)) {
+			switch (step) {
+			case EnumConstantes.STEP_4:
+				gestionSolicitud = "MODULO_4";
+				break;
+			case EnumConstantes.STEP_5:
+				gestionSolicitud = "MODULO_5";
+				break;
+			case EnumConstantes.STEP_7:
+				gestionSolicitud = "";
+				break;
+			default:
+				gestionSolicitud = "MODULO_0";
+				break;
+			}
+		} else if (role.equals(EnumConstantes.ROLE_2)) {
+			switch (step) {
+			case EnumConstantes.STEP_1:
+				gestionSolicitud = "MODULO_1";
+				break;
+			case EnumConstantes.STEP_2:
+				gestionSolicitud = "MODULO_2";
+				break;
+			case EnumConstantes.STEP_3:
+				gestionSolicitud = "MODULO_3";
+				break;
+			case EnumConstantes.STEP_6:
+				gestionSolicitud = "MODULO_6";
+				break;
+			default:
+				break;
+			}
+		}
+		return gestionSolicitud;
+	}
+	
+	public static String obtencionFasePorStep(String step) {
+		String faseStr = "N/A";
+		switch (step) {
+		case EnumConstantes.STEP_1:
+			faseStr = "Fase 1";
+			break;
+		case EnumConstantes.STEP_2:
+			faseStr = "Fase 2";
+			break;
+		case EnumConstantes.STEP_3:
+			faseStr = "Fase 3";
+			break;
+		case EnumConstantes.STEP_4:
+			faseStr = "Fase 4";
+			break;
+		case EnumConstantes.STEP_5:
+			faseStr = "Fase 5";
+			break;
+		case EnumConstantes.STEP_6:
+			faseStr = "Fase 6";
+			break;
+		case EnumConstantes.STEP_7:
+			faseStr = "Finalizada";
+			break;
+		default:
+			break;
+		}
+		return faseStr;
+	}
+		
+	public static List<SolicitudAppDto> listaSolicitudesAppDtoPaginada(List<SolicitudesApp> listaSolicitudesApp,
+			int elementosPorPagina, int paginaActual) {
 		List<SolicitudAppDto> listaSolicitudesAppDto = new ArrayList<>();
 		int rangoInicial = (paginaActual * elementosPorPagina) - elementosPorPagina;
 		for (int i = 0; i < listaSolicitudesApp.size(); i++) {
 			if ((i + 1) > rangoInicial) {
-				listaSolicitudesAppDto
-						.add(new SolicitudAppDto("", "",listaSolicitudesApp.get(i), new ArrayList<>(), new ArrayList<>(),
-								new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), null, "", ""));
+				SolicitudAppDto solicitudAppDto = new SolicitudAppDto("", "", listaSolicitudesApp.get(i),
+						new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(),
+						new ArrayList<>(), null, "", "");
+				listaSolicitudesAppDto.add(solicitudAppDto);
 			}
 			if (listaSolicitudesAppDto.size() == elementosPorPagina) {
 				break;
 			}
 		}
 		return listaSolicitudesAppDto;
+	}
+	
+	public static List<SolicitudesApp> listaSolicitudesFiltroFase(List<SolicitudesApp> listaSolicitudesApp, String faseStep) {
+		List<SolicitudesApp> solicitudesApp = new ArrayList<>();
+		try {
+			for (int i = 0; i < listaSolicitudesApp.size(); i++) {
+				String currentStep = listaSolicitudesApp.get(i).getCurrent_step();
+				if (currentStep.equals(faseStep)) {
+					solicitudesApp.add(listaSolicitudesApp.get(i));
+				}
+			}	
+		} catch (Exception e) {
+			solicitudesApp = listaSolicitudesApp;
+			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
+		}
+		return solicitudesApp;
 	}
 	
 	public static List<SolicitudesApp> listaSolicitudesFiltroDepartamento(List<SolicitudesApp> listaSolicitudesApp, String departamentoFiltro) {
@@ -168,6 +255,11 @@ public class UadminAppUtil {
 	public static String getResultOperation(String nameOperationEvent) {
 		String resultadoOperacion = "";
 		switch (nameOperationEvent) {
+		
+		case EnumConstantes.EVENTO_ASIGNA_A_REVISION:
+			resultadoOperacion = EnumConstantes.RESULT_ASIGNA_A_REVISION;
+			break;
+			
 		case EnumConstantes.EVENTO_CREA_SOLICITUD:
 			resultadoOperacion = EnumConstantes.RESULT_CREA_SOLICITUD;
 			break;
@@ -177,30 +269,38 @@ public class UadminAppUtil {
 		case EnumConstantes.EVENTO_NO_PREAPROBADO:
 			resultadoOperacion = EnumConstantes.RESULT_NO_PREAPROBADO;
 			break;
-		case EnumConstantes.EVENTO_DEVUELTO_GESTION:
-			resultadoOperacion = EnumConstantes.RESULT_DEVUELTO_GESTION;
+		case EnumConstantes.EVENTO_DEVUELTO_GESTION_CREADOR_SOLICITUD:
+			resultadoOperacion = EnumConstantes.RESULT_DEVUELTO_GESTION_CREADOR_SOLICITUD;
 			break;
-		case EnumConstantes.EVENTO_ASIGNA_A_REVISION:
-			resultadoOperacion = EnumConstantes.RESULT_ASIGNA_A_REVISION;
-			break;
+			
+			
 		case EnumConstantes.EVENTO_ESTUDIO_VIABILIDAD:
 			resultadoOperacion = EnumConstantes.RESULT_ESTUDIO_VIABILIDAD;
 			break;
-		case EnumConstantes.EVENTO_VIABLE:
-			resultadoOperacion = EnumConstantes.RESULT_VIABLE;
+		case EnumConstantes.EVENTO_DEVUELTO_GESTION:
+			resultadoOperacion = EnumConstantes.RESULT_DEVUELTO_GESTION;
 			break;
-		case EnumConstantes.EVENTO_NO_VIABLE:
-			resultadoOperacion = EnumConstantes.RESULT_NO_VIABLE;
+		case EnumConstantes.EVENTO_NO_APROBADO:
+			resultadoOperacion = EnumConstantes.RESULT_NO_APROBADO;
+			break;	
+			
+
+		case EnumConstantes.EVENTO_FACTIBLE_ACTUALIZACION:
+			resultadoOperacion = EnumConstantes.RESULT_FACTIBLE_ACTUALIZACION;
 			break;
-		case EnumConstantes.EVENTO_ENVIADO_POSTULACION:
-			resultadoOperacion = EnumConstantes.RESULT_ENVIADO_POSTULACION;
-			break;			
-		case EnumConstantes.EVENTO_OBTENCION_SUBSIDIO:
-			resultadoOperacion = EnumConstantes.RESULT_OBTENCION_SUBSIDIO;
+			
+		case EnumConstantes.EVENTO_LICENCIAR:
+			resultadoOperacion = EnumConstantes.RESULT_LICENCIAR;
 			break;
-		case EnumConstantes.EVENTO_DEVUELTO_INGENIERIA:
-			resultadoOperacion = EnumConstantes.RESULT_DEVUELTO_INGENIERIA;
+		
+		case EnumConstantes.EVENTO_LICENCIA_SUBSIDIO:
+			resultadoOperacion = EnumConstantes.RESULT_LICENCIA_SUBSIDIO;
 			break;
+			
+		case EnumConstantes.EVENTO_VO_BO_SUBSIDIO:
+			resultadoOperacion = EnumConstantes.RESULT_VO_BO_SUBSIDIO;
+			break;
+			
 		default:
 			break;
 		}
@@ -388,12 +488,7 @@ public class UadminAppUtil {
 		inicializaNotificacionEvento(EnumConstantes.EVENTO_NO_PREAPROBADO, iNotificacionesAppService);
 		inicializaNotificacionEvento(EnumConstantes.EVENTO_DEVUELTO_GESTION, iNotificacionesAppService);
 		inicializaNotificacionEvento(EnumConstantes.EVENTO_ASIGNA_A_REVISION, iNotificacionesAppService);
-		inicializaNotificacionEvento(EnumConstantes.EVENTO_ESTUDIO_VIABILIDAD, iNotificacionesAppService);
-		inicializaNotificacionEvento(EnumConstantes.EVENTO_VIABLE, iNotificacionesAppService);
-		inicializaNotificacionEvento(EnumConstantes.EVENTO_NO_VIABLE, iNotificacionesAppService);
-		inicializaNotificacionEvento(EnumConstantes.EVENTO_ENVIADO_POSTULACION, iNotificacionesAppService);
-		inicializaNotificacionEvento(EnumConstantes.EVENTO_OBTENCION_SUBSIDIO, iNotificacionesAppService);
-		inicializaNotificacionEvento(EnumConstantes.EVENTO_DEVUELTO_INGENIERIA, iNotificacionesAppService);		
+		inicializaNotificacionEvento(EnumConstantes.EVENTO_ESTUDIO_VIABILIDAD, iNotificacionesAppService);		
 	}
 	
 	public static boolean inicializaNotificacionEvento(String nombreEvento, INotificacionesAppService iNotificacionesAppService) {
