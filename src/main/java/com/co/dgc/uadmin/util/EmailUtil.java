@@ -59,30 +59,23 @@ public class EmailUtil extends Thread {
 	public void notificaOperacion() {
 		String asunto = "VIVIENDA RURAL DIGNA -- " + this.numeroRadicado;
 		String cuerpo = "";
-			
 		switch (this.nameOperationEvent) {
-		case EnumConstantes.EVENTO_CREA_SOLICITUD:
-			cuerpo = plantillaGenerica();
-			break;
 		case EnumConstantes.EVENTO_PREAPROBADO:
 			cuerpo = plantillaPreaprobado();
 			break;
-		case EnumConstantes.EVENTO_NO_PREAPROBADO:
-			cuerpo = plantillaNoPreaprobado();
-			break;
-		case EnumConstantes.EVENTO_DEVUELTO_GESTION:
-			cuerpo = plantillaGenerica();
-			break;
-		case EnumConstantes.EVENTO_ASIGNA_A_REVISION:
-			cuerpo = plantillaGenerica();
-			break;
 		case EnumConstantes.EVENTO_ESTUDIO_VIABILIDAD:
-			cuerpo = plantillaGenerica();
+			cuerpo = plantillaViabilidadTecnica();
+			break;
+		case EnumConstantes.EVENTO_LICENCIA_SUBSIDIO:
+			cuerpo = plantillaObtencionSubsidio();
+			break;
+		case EnumConstantes.EVENTO_NO_APROBADO + ";" + EnumConstantes.STEP_2:
+			cuerpo = noAprobadoFase2();
 			break;
 		default:
 			cuerpo = plantillaGenerica();
 			break;
-		}		
+		}
 		enviarConGMail(destinatario, asunto, cuerpo);
 	}
 
@@ -96,12 +89,14 @@ public class EmailUtil extends Thread {
 		
 		String template = "<!DOCTYPE html>\r\n"
 				+ "<html>\r\n"
-				+ "\r\n"
 				+ "<head>\r\n"
 				+ "	<meta charset=\"utf-8\">\r\n"
 				+ "	<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n"
 				+ "	<title></title>\r\n"
 				+ "	<style>\r\n"
+				+ "		.container-template {\r\n"
+				+ "			padding: 2rem;\r\n"
+				+ "		}\r\n"
 				+ "\r\n"
 				+ "		p {\r\n"
 				+ "			font-family: 'Calibri';\r\n"
@@ -145,7 +140,7 @@ public class EmailUtil extends Thread {
 				+ "</head>\r\n"
 				+ "\r\n"
 				+ "<body>\r\n"
-				+ "	<div class=\"container-template\" style=\"padding: 2rem;\">\r\n"
+				+ "	<div class=\"container-template\">\r\n"
 				+ "		<div class=\"div-image-padre\">\r\n"
 				+ "			<div class=\"div-image\">\r\n"
 				+ "				<img src=\"https://appuadminbucket.s3.us-east-1.amazonaws.com/SOURCES_APP/IMAGENES_EMAIL/logo_vivienda_rural.PNG\"\r\n"
@@ -161,25 +156,27 @@ public class EmailUtil extends Thread {
 				+ "		<br />\r\n"
 				+ "		<p>Respetado(a) Señor(a):</p>\r\n"
 				+ "		<br />\r\n"
-				+ "		<p>Con mucha alegría, nos permitimos informarle que, tras la revisión de los documentos\r\n"
-				+ "			proporcionados, usted ha sido <span class=\"p-negrita\">Preaprobado(a)</span> para avanzar a la siguiente fase\r\n"
+				+ "		<p>\r\n"
+				+ "			Con mucha alegría, nos permitimos informarle que, tras la revisión de los documentos\r\n"
+				+ "			proporcionados, usted ha sido <span class=\"p-negrita\">preaprobado(a)</span> para avanzar a la siguiente fase\r\n"
 				+ "			del programa\r\n"
 				+ "			<span class=\"p-negrita\">VIVIENDA RURAL DIGNA.</span> Este es un paso significativo hacia la realización de\r\n"
 				+ "			su sueño de\r\n"
 				+ "			vivienda, y queremos felicitarle por su compromiso y esfuerzo.\r\n"
 				+ "		</p>\r\n"
-				+ "		<p>Para continuar, le solicitamos amablemente que nos proporcione los siguientes documentos, los\r\n"
+				+ "		<p>\r\n"
+				+ "			Para continuar, le solicitamos amablemente que nos proporcione los siguientes documentos, los\r\n"
 				+ "			cuales son esenciales para realizar el análisis técnico de viabilidad:\r\n"
 				+ "		</p>\r\n"
 				+ "		<ol>\r\n"
-				+ "			<li>Certificado de disponibilidad de agua (emitido por las Juntas de Acción Comunal o el\r\n"
-				+ "				Acueducto Veredal).</li>\r\n"
+				+ "			<li>Certificado de disponibilidad de agua potable indicando que es para consumo humano y uso doméstico \r\n"
+				+ "				(emitido por las Juntas de Acción Comunal o el Acueducto Veredal).</li>\r\n"
 				+ "			<li>Certificado de disponibilidad de energía (emitido por Enel-Codensa).</li>\r\n"
-				+ "			<li>Certificado del uso del suelo (solicítelo en la alcaldía de su municipio).</li>\r\n"
-				+ "			<li>Certificado de no riesgo (emitido por Planeación Municipal).</li>\r\n"
-				+ "			<li>Formulario de verificación documental (entregado por nuestra empresa).</li>\r\n"
+				+ "			<li>Certificado del uso del suelo (emitido por Secretaría de Planeación Municipal).</li>\r\n"
+				+ "			<li>Certificado de no riesgo (emitido por Secretaría de Planeación Municipal).</li>\r\n"
 				+ "		</ol>\r\n"
-				+ "		<p>Estamos seguros de que este es un paso más hacia un futuro lleno de nuevas oportunidades para\r\n"
+				+ "		<p>\r\n"
+				+ "			Estamos seguros de que este es un paso más hacia un futuro lleno de nuevas oportunidades para\r\n"
 				+ "			usted y su familia. Quedamos atentos a recibir estos documentos y a resolver cualquier duda que\r\n"
 				+ "			pueda tener.\r\n"
 				+ "		</p>\r\n"
@@ -208,25 +205,22 @@ public class EmailUtil extends Thread {
 				+ "				</div>\r\n"
 				+ "			</div>\r\n"
 				+ "		</div>\r\n"
-				+ "\r\n"
 				+ "	</div>\r\n"
 				+ "</body>\r\n"
-				+ "\r\n"
 				+ "</html>";
 		return template;		
 	}
 	
-	public String plantillaNoPreaprobado() {
-
+	public String plantillaViabilidadTecnica() {
+		
 		Date fecha = new Date();
 		SimpleDateFormat formateador = new SimpleDateFormat("d 'de' MMMM 'de' yyyy", new Locale("es", "ES"));
 		String fechaFormateada = formateador.format(fecha);
 		String nombresCompletos = this.solicitudApp.getNombres() + " " + this.solicitudApp.getApellidos();
 		String municipioDepartamento = this.solicitudApp.getDepartamento_municipio();
-
+		
 		String template = "<!DOCTYPE html>\r\n"
 				+ "<html>\r\n"
-				+ "\r\n"
 				+ "<head>\r\n"
 				+ "	<meta charset=\"utf-8\">\r\n"
 				+ "	<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n"
@@ -274,9 +268,16 @@ public class EmailUtil extends Thread {
 				+ "			display: flex;\r\n"
 				+ "			justify-content: space-between;\r\n"
 				+ "		}\r\n"
+				+ "\r\n"
+				+ "		.m-li-top {\r\n"
+				+ "			margin-top: 5px;\r\n"
+				+ "		}\r\n"
+				+ "\r\n"
+				+ "		.m-li {\r\n"
+				+ "			margin-top: 15px;\r\n"
+				+ "		}\r\n"
 				+ "	</style>\r\n"
 				+ "</head>\r\n"
-				+ "\r\n"
 				+ "<body>\r\n"
 				+ "	<div class=\"container-template\">\r\n"
 				+ "		<div class=\"div-image-padre\">\r\n"
@@ -295,139 +296,8 @@ public class EmailUtil extends Thread {
 				+ "		<p>Respetado(a) Señor(a):</p>\r\n"
 				+ "		<br />\r\n"
 				+ "		<p>\r\n"
-				+ "			Con profundo respeto, queremos agradecerle por su participación en el programa\r\n"
-				+ "			<span class=\"p-negrita\">VIVIENDA RURAL DIGNA.</span>\r\n"
-				+ "			Tras un análisis detallado de los documentos proporcionados, lamentamos informarle que\r\n"
-				+ "			en esta ocasión no ha sido posible otorgarle la pre aprobación para avanzar a la siguiente fase del\r\n"
-				+ "			proceso.\r\n"
-				+ "		</p>\r\n"
-				+ "		<br />\r\n"
-				+ "		<p>\r\n"
-				+ "			Queremos expresar nuestra más sincera empatía y reconocer el esfuerzo que usted ha demostrado\r\n"
-				+ "			en su aplicación. Aunque este resultado pueda ser desalentador, queremos que sepa que seguimos\r\n"
-				+ "			comprometidos con nuestra misión de apoyar a las comunidades rurales, y su postulación seguirá\r\n"
-				+ "			siendo considerada en futuros programas o subsidios.\r\n"
-				+ "		</p>\r\n"
-				+ "		<br />\r\n"
-				+ "		<p>\r\n"
-				+ "			Le animamos a mantenerse en contacto con nosotros para conocer nuevas oportunidades. Su\r\n"
-				+ "			compromiso y dedicación son una inspiración para seguir trabajando por el bienestar de nuestras\r\n"
-				+ "			comunidades.\r\n"
-				+ "		</p>\r\n"
-				+ "		<br />\r\n"
-				+ "		<p>Cordialmente,</p>\r\n"
-				+ "		<br />\r\n"
-				+ "		<div class=\"div-firmas-container\">\r\n"
-				+ "			<div>\r\n"
-				+ "				<div class=\"div-image-padre\">\r\n"
-				+ "					<div class=\"div-image-firma\">\r\n"
-				+ "						<img src=\"https://appuadminbucket.s3.us-east-1.amazonaws.com/SOURCES_APP/IMAGENES_EMAIL/firma_rafa_lozano.PNG\"\r\n"
-				+ "							alt=\"Firma\" class=\"image-logo\">\r\n"
-				+ "					</div>\r\n"
-				+ "				</div>\r\n"
-				+ "				<p>_______________________________</p>\r\n"
-				+ "				<p class=\"p-negrita\">RAFAEL EDUARDO LOZANO</p>\r\n"
-				+ "				<p class=\"p-negrita\">Proyecto: VIVIENDA RURAL DIGNA</p>\r\n"
-				+ "				<p class=\"p-negrita\">FRANCO OSORIO INVESTMENT S.A.S. </p>\r\n"
-				+ "			</div>\r\n"
-				+ "			<div>\r\n"
-				+ "				<div class=\"div-image-padre\">\r\n"
-				+ "					<div class=\"div-image-firma\">\r\n"
-				+ "						<img src=\"https://appuadminbucket.s3.us-east-1.amazonaws.com/SOURCES_APP/IMAGENES_EMAIL/logo_franco_osorio.PNG\"\r\n"
-				+ "							alt=\"Firma\" class=\"image-logo\">\r\n"
-				+ "					</div>\r\n"
-				+ "				</div>\r\n"
-				+ "			</div>\r\n"
-				+ "		</div>\r\n"
-				+ "\r\n"
-				+ "	</div>\r\n"
-				+ "</body>\r\n"
-				+ "\r\n"
-				+ "</html>";
-		return template;
-	}
-	
-	public String plantillaViabilidadEstudiosTecnicos() {
-		
-		Date fecha = new Date();
-		SimpleDateFormat formateador = new SimpleDateFormat("d 'de' MMMM 'de' yyyy", new Locale("es", "ES"));
-		String fechaFormateada = formateador.format(fecha);
-		String nombresCompletos = this.solicitudApp.getNombres() + " " + this.solicitudApp.getApellidos();
-		String municipioDepartamento = this.solicitudApp.getDepartamento_municipio();
-		
-		String template = "<!DOCTYPE html>\r\n"
-				+ "<html>\r\n"
-				+ "\r\n"
-				+ "<head>\r\n"
-				+ "	<meta charset=\"utf-8\">\r\n"
-				+ "	<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n"
-				+ "	<title></title>\r\n"
-				+ "	<style>\r\n"
-				+ "		.container-template {\r\n"
-				+ "			padding: 2rem;\r\n"
-				+ "		}\r\n"
-				+ "\r\n"
-				+ "		p {\r\n"
-				+ "			font-family: 'Calibri';\r\n"
-				+ "			text-align: justify;\r\n"
-				+ "			margin: 5px;\r\n"
-				+ "			font-size: 18px;\r\n"
-				+ "		}\r\n"
-				+ "\r\n"
-				+ "		li {\r\n"
-				+ "			font-family: 'Calibri';\r\n"
-				+ "			font-size: 18px;\r\n"
-				+ "		}\r\n"
-				+ "\r\n"
-				+ "		.p-negrita {\r\n"
-				+ "			font-weight: bold;\r\n"
-				+ "		}\r\n"
-				+ "\r\n"
-				+ "		.div-image-padre {\r\n"
-				+ "			width: 100%;\r\n"
-				+ "			display: flex;\r\n"
-				+ "			justify-content: center;\r\n"
-				+ "		}\r\n"
-				+ "\r\n"
-				+ "		.div-image {\r\n"
-				+ "			width: 16rem;\r\n"
-				+ "		}\r\n"
-				+ "\r\n"
-				+ "		.div-image-firma {\r\n"
-				+ "			width: 8rem;\r\n"
-				+ "		}\r\n"
-				+ "\r\n"
-				+ "		.image-logo {\r\n"
-				+ "			width: 100%;\r\n"
-				+ "		}\r\n"
-				+ "\r\n"
-				+ "		.div-firmas-container {\r\n"
-				+ "			display: flex;\r\n"
-				+ "			justify-content: space-between;\r\n"
-				+ "		}\r\n"
-				+ "	</style>\r\n"
-				+ "</head>\r\n"
-				+ "\r\n"
-				+ "<body>\r\n"
-				+ "	<div class=\"container-template\">\r\n"
-				+ "		<div class=\"div-image-padre\">\r\n"
-				+ "			<div class=\"div-image\">\r\n"
-				+ "				<img src=\"https://appuadminbucket.s3.us-east-1.amazonaws.com/SOURCES_APP/IMAGENES_EMAIL/logo_vivienda_rural.PNG\"\r\n"
-				+ "					alt=\"Logo Vivienda Rural\" class=\"image-logo\">\r\n"
-				+ "			</div>\r\n"
-				+ "		</div>\r\n"
-				+ "		<br />\r\n"
-				+ "		<p>Bogotá, " + fechaFormateada + "</p>\r\n"
-				+ "		<br />\r\n"
-				+ "		<p>Señor(a): " + nombresCompletos + "</p>\r\n"
-				+ "		<p>Municipio: " + municipioDepartamento + "</p>\r\n"
-				+ "		<p>VIVIENDA RURAL DIGNA</p>\r\n"
-				+ "		<br />\r\n"
-				+ "		<p>Respetado(a) Señor(a):</p>\r\n"
-				+ "		<br />\r\n"
-				+ "		<p>\r\n"
-				+ "			Nos complace informarle que, tras un exhaustivo análisis técnico, usted ha sido declarado(a)\r\n"
-				+ "			<span class=\"p-negrita\">Viable Técnicamente</span> para avanzar a la siguiente fase del programa <span\r\n"
+				+ "			Nos complace informarle que, tras un exhaustivo análisis técnico, hemos determinado que usted es\r\n"
+				+ "			<span class=\"p-negrita\">viable técnicamente</span> para avanzar a la siguiente fase del programa <span\r\n"
 				+ "				class=\"p-negrita\">VIVIENDA RURAL DIGNA.</span> Este es un\r\n"
 				+ "			logro significativo y un testimonio de su esfuerzo y compromiso.\r\n"
 				+ "		</p>\r\n"
@@ -436,23 +306,33 @@ public class EmailUtil extends Thread {
 				+ "			indispensables:\r\n"
 				+ "		</p>\r\n"
 				+ "		<ol>\r\n"
-				+ "			<li>Registro fotográfico del lote.</li>\r\n"
-				+ "			<li>Copia de la última escritura del predio.</li>\r\n"
-				+ "			<li>Paz y salvo del impuesto predial.</li>\r\n"
-				+ "			<li>Documentos de los vecinos (formato proporcionado).</li>\r\n"
-				+ "			<li>Notificación a vecinos (formato proporcionado).</li>\r\n"
-				+ "			<li>Certificado de solicitud de licencia.</li>\r\n"
-				+ "			<li>Poder para solicitud de licencia.</li>\r\n"
-				+ "			<li>Firmar planos y formato notarial.</li>\r\n"
-				+ "			<li>Radicado de la licencia. </li>\r\n"
-				+ "			<li>Certificación de avalúo catastral. </li>\r\n"
-				+ "			<li>Certificación de nomenclatura.</li>\r\n"
-				+ "			<li>Formulario de postulación.</li>\r\n"
-				+ "			<li>Certificado de responsabilidad documental (formato proporcionado).</li>\r\n"
-				+ "			<li>Formulario de cartilla de especificaciones (formato proporcionado).</li>\r\n"
-				+ "			<li>Contrato de obra.</li>\r\n"
-				+ "			<li>Contrato de voluntariado. </li>\r\n"
-				+ "			<li>Formulario de declaración jurada.</li>\r\n"
+				+ "			<li>Paz y Salvo de impuesto predial que incluya el avalúo catastral (emitido por la Secretaría Municipal de\r\n"
+				+ "				Hacienda).</li>\r\n"
+				+ "			<li class=\"m-li-top\">Copia de la última escritura del predio.</li>\r\n"
+				+ "			<li class=\"m-li-top\">Certificado de nomenclatura (emitido por la Secretaría Municipal de Planeación).</li>\r\n"
+				+ "			<li class=\"m-li-top\">Contrato de obra <span class=\"p-negrita\">autenticado</span> (formato proporcionado).\r\n"
+				+ "			</li>\r\n"
+				+ "			<li class=\"m-li-top\">Formato datos vecinos (formato proporcionado).</li>\r\n"
+				+ "			<li class=\"m-li-top\">Formato notificación a vecinos (formato proporcionado).</li>\r\n"
+				+ "			<li class=\"m-li-top\">Formato carta de solicitud de licencia (formato proporcionado).</li>\r\n"
+				+ "			<li class=\"m-li-top\">Formato poder para solicitud de licencia <span class=\"p-negrita\">autenticado</span>\r\n"
+				+ "				(formato\r\n"
+				+ "				proporcionado).</li>\r\n"
+				+ "			<li class=\"m-li-top\">Formulario de postulación a Cafam (formato proporcionado).</li>\r\n"
+				+ "			<li class=\"m-li-top\">Certificado de responsabilidad documental (formato proporcionado).</li>\r\n"
+				+ "			<li class=\"m-li-top\">Formato cartilla de especificaciones (formato proporcionado).</li>\r\n"
+				+ "			<li class=\"m-li-top\">Contrato de voluntariado (formato proporcionado).</li>\r\n"
+				+ "			<li class=\"m-li-top\">Formulario de declaración juramentada (formato proporcionado).</li>\r\n"
+				+ "			<li class=\"m-li-top\">Registro fotográfico del predio, así:</li>\r\n"
+				+ "			<ul style=\"list-style-type: disc;\">\r\n"
+				+ "				<li class=\"m-li\">5 fotografías del predio desde la entrada y desde los linderos de este mostrando en lo\r\n"
+				+ "					posible todo el predio</li>\r\n"
+				+ "				<li class=\"m-li-top\">3 fotos de la zona donde se espera construir la vivienda</li>\r\n"
+				+ "				<li class=\"m-li-top\">3 fotos de la vía de acceso al lote</li>\r\n"
+				+ "				<li class=\"m-li-top\">Fotos de postes de energía, red de acueducto veredal, medidores en el predio o de\r\n"
+				+ "					vecinos.</li>\r\n"
+				+ "			</ul>\r\n"
+				+ "			<li class=\"m-li\">Firmar planos y formato único nacional – FUN (formato proporcionado).</li>\r\n"
 				+ "		</ol>\r\n"
 				+ "		<p>\r\n"
 				+ "			Estamos muy emocionados de que continúe en esta importante iniciativa y reiteramos nuestro\r\n"
@@ -483,10 +363,8 @@ public class EmailUtil extends Thread {
 				+ "				</div>\r\n"
 				+ "			</div>\r\n"
 				+ "		</div>\r\n"
-				+ "\r\n"
 				+ "	</div>\r\n"
 				+ "</body>\r\n"
-				+ "\r\n"
 				+ "</html>";
 		return template;
 	}
@@ -501,7 +379,6 @@ public class EmailUtil extends Thread {
 
 		String template = "<!DOCTYPE html>\r\n"
 				+ "<html>\r\n"
-				+ "\r\n"
 				+ "<head>\r\n"
 				+ "	<meta charset=\"utf-8\">\r\n"
 				+ "	<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n"
@@ -551,7 +428,6 @@ public class EmailUtil extends Thread {
 				+ "		}\r\n"
 				+ "	</style>\r\n"
 				+ "</head>\r\n"
-				+ "\r\n"
 				+ "<body>\r\n"
 				+ "	<div class=\"container-template\">\r\n"
 				+ "		<div class=\"div-image-padre\">\r\n"
@@ -564,37 +440,35 @@ public class EmailUtil extends Thread {
 				+ "		<p>Bogotá, " + fechaFormateada + "</p>\r\n"
 				+ "		<br />\r\n"
 				+ "		<p>Señor(a): " + nombresCompletos + "</p>\r\n"
-				+ "		<p>Municipio: " + municipioDepartamento + "</p>\r\n"
-				+ "		<p>VIVIENDA RURAL DIGNA</p>\r\n"
+				+ "		<p>Municipio: "+  municipioDepartamento +"</p>\r\n"
 				+ "		<br />\r\n"
-				+ "		<p>Respetado(a) Señor(a):</p>\r\n"
+				+ "		<p>Asunto: ¡Felicitaciones por la Aprobación de su Subsidio de Vivienda Rural Digna!</p>\r\n"
+				+ "		<br />\r\n"
+				+ "		<p>Querido(a) Señor(a) " + nombresCompletos + ":</p>\r\n"
+				+ "		<br />\r\n"
+				+ "		<p>¡Reciba un afectuoso y cálido saludo!</p>\r\n"
 				+ "		<br />\r\n"
 				+ "		<p>\r\n"
-				+ "			Con inmensa alegría y profunda gratitud, nos permitimos notificarle que usted ha sido\r\n"
-				+ "			seleccionado(a) como <span class=\"p-negrita\">Beneficiario(a) del Subsidio</span> del programa <span\r\n"
-				+ "				class=\"p-negrita\">VIVIENDA RURAL DIGNA.</span> Este\r\n"
-				+ "			logro representa no solo su esfuerzo y dedicación, sino también nuestro compromiso de construir un\r\n"
-				+ "			futuro mejor para las comunidades rurales de nuestro país.\r\n"
+				+ "			Con inmensa alegría y satisfacción, nos complace compartir con usted una maravillosa noticia:\r\n"
+				+ "			¡Su solicitud para el subsidio de vivienda rural ha sido <span class=\"p-negrita\"> APROBADA </span>\r\n"
+				+ "			por la Caja de Compensación Familiar Cafam.\r\n"
 				+ "		</p>\r\n"
 				+ "		<br />\r\n"
 				+ "		<p>\r\n"
-				+ "			Queremos felicitarle por este paso tan significativo. Usted y su familia pronto contarán con un hogar\r\n"
-				+ "			digno, un espacio que será testigo de sus sueños, sus logros y los momentos más valiosos de su\r\n"
-				+ "			vida. Con la expedición de la licencia de construcción, iniciaremos las obras para que muy pronto\r\n"
-				+ "			pueda disfrutar de su nueva vivienda.\r\n"
-				+ "		</p>\r\n"
-				+ "		<p>\r\n"
-				+ "			Desde el inicio, este programa se diseñó con la visión de transformar vidas, y es gracias a personas\r\n"
-				+ "			como usted que esa misión cobra sentido. Nos llena de orgullo ser parte de su historia y acompañarle\r\n"
-				+ "			en este viaje hacia un futuro lleno de esperanza y nuevas oportunidades.\r\n"
+				+ "			Este gran logro es fruto de su perseverancia, compromiso y confianza a lo largo de todo el proceso del\r\n"
+				+ "			programa <span class=\"p-negrita\"> VIVIENDA RURAL DIGNA </span>. Nos honra enormemente poder acompañarle en\r\n"
+				+ "			este camino hacia una vida mejor y más estable.\r\n"
 				+ "		</p>\r\n"
 				+ "		<br />\r\n"
 				+ "		<p>\r\n"
-				+ "			Gracias por permitirnos ser parte de este hermoso proceso. Su confianza y compromiso inspiran\r\n"
-				+ "			todo lo que hacemos.\r\n"
+				+ "			Próximamente nos estaremos comunicando con usted donde le informaremos los pasos a seguir para el inicio de\r\n"
+				+ "			la construcción de su vivienda.\r\n"
 				+ "		</p>\r\n"
 				+ "		<br />\r\n"
-				+ "		<p>Con admiración y respeto, </p>\r\n"
+				+ "		<p>\r\n"
+				+ "			Desde nuestro equipo, le enviamos nuestras más sinceras felicitaciones y un fuerte abrazo. Que este hogar\r\n"
+				+ "			sea el refugio de muchas alegrías, unión y amor.\r\n"
+				+ "		</p>\r\n"
 				+ "		<br />\r\n"
 				+ "		<p>Cordialmente,</p>\r\n"
 				+ "		<br />\r\n"
@@ -622,22 +496,19 @@ public class EmailUtil extends Thread {
 				+ "		</div>\r\n"
 				+ "	</div>\r\n"
 				+ "</body>\r\n"
-				+ "\r\n"
 				+ "</html>";
 		return template;
 	}
 	
-	public String plantillaNoViable() {
-		
+	public String noAprobadoFase2() {
 		Date fecha = new Date();
 		SimpleDateFormat formateador = new SimpleDateFormat("d 'de' MMMM 'de' yyyy", new Locale("es", "ES"));
 		String fechaFormateada = formateador.format(fecha);
 		String nombresCompletos = this.solicitudApp.getNombres() + " " + this.solicitudApp.getApellidos();
 		String municipioDepartamento = this.solicitudApp.getDepartamento_municipio();
-		
+
 		String template = "<!DOCTYPE html>\r\n"
 				+ "<html>\r\n"
-				+ "\r\n"
 				+ "<head>\r\n"
 				+ "	<meta charset=\"utf-8\">\r\n"
 				+ "	<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n"
@@ -687,7 +558,6 @@ public class EmailUtil extends Thread {
 				+ "		}\r\n"
 				+ "	</style>\r\n"
 				+ "</head>\r\n"
-				+ "\r\n"
 				+ "<body>\r\n"
 				+ "	<div class=\"container-template\">\r\n"
 				+ "		<div class=\"div-image-padre\">\r\n"
@@ -706,22 +576,24 @@ public class EmailUtil extends Thread {
 				+ "		<p>Respetado(a) Señor(a):</p>\r\n"
 				+ "		<br />\r\n"
 				+ "		<p>\r\n"
-				+ "			Queremos agradecerle sinceramente por su participación y el esfuerzo demostrado en el programa\r\n"
-				+ "			<span class=\"p-negrita\">VIVIENDA RURAL DIGNA.</span> Sin embargo, tras un detallado análisis técnico,\r\n"
-				+ "			lamentamos informarle\r\n"
-				+ "			que en esta ocasión no ha sido posible considerarle viable técnicamente para avanzar a la siguiente\r\n"
-				+ "			fase.\r\n"
+				+ "			Queremos agradecerle sinceramente por su participación y el esfuerzo demostrado en el programa <span\r\n"
+				+ "				class=\"p-negrita\">VIVIENDA RURAL DIGNA.</span>.\r\n"
+				+ "			Sin embargo, tras un detallado análisis técnico, lamentamos informarle que en esta ocasión no ha sido\r\n"
+				+ "			posible considerarle viable técnicamente\r\n"
+				+ "			para avanzar a la siguiente fase.\r\n"
 				+ "		</p>\r\n"
 				+ "		<br />\r\n"
 				+ "		<p>\r\n"
-				+ "			Entendemos que esta noticia puede ser desalentadora, pero queremos asegurarle que seguimos\r\n"
-				+ "			comprometidos con nuestro propósito de trabajar por el bienestar de las comunidades rurales. Su\r\n"
-				+ "			postulación seguirá siendo valorada en futuras iniciativas y programas que podamos implementar.\r\n"
+				+ "			Entendemos que esta noticia puede ser desalentadora, pero queremos asegurarle que seguimos comprometidos con\r\n"
+				+ "			nuestro propósito\r\n"
+				+ "			de trabajar por el bienestar de las comunidades rurales. Su postulación seguirá siendo valorada en futuras\r\n"
+				+ "			iniciativas y programas\r\n"
+				+ "			que podamos implementar.\r\n"
 				+ "		</p>\r\n"
 				+ "		<br />\r\n"
 				+ "		<p>\r\n"
-				+ "			Quedamos a su disposición para atender cualquier inquietud y le animamos a mantenerse en\r\n"
-				+ "			contacto para futuras oportunidades.\r\n"
+				+ "			Quedamos a su disposición para atender cualquier inquietud y le animamos a mantenerse en contacto para\r\n"
+				+ "			futuras oportunidades.\r\n"
 				+ "		</p>\r\n"
 				+ "		<br />\r\n"
 				+ "		<p>Cordialmente,</p>\r\n"
@@ -750,9 +622,9 @@ public class EmailUtil extends Thread {
 				+ "		</div>\r\n"
 				+ "	</div>\r\n"
 				+ "</body>\r\n"
-				+ "\r\n"
 				+ "</html>";
 		return template;
+		
 	}
 
 	public String plantillaGenerica() {

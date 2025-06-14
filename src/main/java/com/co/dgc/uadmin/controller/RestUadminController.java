@@ -19,7 +19,9 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.co.dgc.uadmin.dto.BeneficiariosDto;
+import com.co.dgc.uadmin.dto.DepartamentosAppDto;
 import com.co.dgc.uadmin.dto.DocumentosDto;
+import com.co.dgc.uadmin.dto.MunicipiosAppDto;
 import com.co.dgc.uadmin.dto.MunicipiosDto;
 import com.co.dgc.uadmin.dto.NotificacionesAppDto;
 import com.co.dgc.uadmin.dto.SolicitudAppDto;
@@ -45,6 +47,8 @@ import com.co.dgc.uadmin.request.RqEliminarMunicipioDepartamento;
 import com.co.dgc.uadmin.request.RqEliminarSolicitud;
 import com.co.dgc.uadmin.request.RqEliminarUsuario;
 import com.co.dgc.uadmin.request.RqGetBeneficiariosSolicitud;
+import com.co.dgc.uadmin.request.RqGetDepartamentos;
+import com.co.dgc.uadmin.request.RqGetMunicipios;
 import com.co.dgc.uadmin.request.RqGetMunicipiosPorDepartamento;
 import com.co.dgc.uadmin.request.RqGetNotificacionesEventos;
 import com.co.dgc.uadmin.request.RqGetSolicitudApp;
@@ -141,8 +145,13 @@ public class RestUadminController {
 					body.getNombreOperacion(), 
 					resultadoOperacion, 
 					body.getObservaciones());
-			UadminAppUtil.reporteEventos(iEventosSolicitudesAppService, eventosSolicitudesApp);			
-			List<NotificacionesApp> notificacionesEvento = iNotificacionesAppService.getNotificacionesPorEvento(body.getNombreOperacion());		
+			UadminAppUtil.reporteEventos(iEventosSolicitudesAppService, eventosSolicitudesApp);
+			
+			String eventoOperacion = body.getNombreOperacion();
+			if(eventoOperacion.contains(EnumConstantes.EVENTO_NO_APROBADO)) {
+				eventoOperacion = EnumConstantes.EVENTO_NO_APROBADO + ";" + solicitudApp.getCurrent_step();
+			}
+			List<NotificacionesApp> notificacionesEvento = iNotificacionesAppService.getNotificacionesPorEvento(eventoOperacion);
 			if (!notificacionesEvento.isEmpty()) {
 				String correos = notificacionesEvento.get(0).getCorreos_notifica();
 				String[] listaCorreos = correos.split(",\\s*");
@@ -151,12 +160,12 @@ public class RestUadminController {
 					String labelDM = UadminAppUtil.obtineLabelDepartamentoMunicipio(solicitudApp.getDepartamento_municipio(), iDepartamentosAppService, iMunicipiosAppService);
 					solicitudApp.setDepartamento_municipio(labelDM);
 					for (String correo : listaCorreos) {						
-						EmailUtil emailUtilThread = new EmailUtil(listaCorreos.length, correo, idDefSolicitud, solicitudApp, body.getNombreOperacion(), resultadoOperacion);
+						EmailUtil emailUtilThread = new EmailUtil(listaCorreos.length, correo, idDefSolicitud, solicitudApp, eventoOperacion, resultadoOperacion);
 						emailUtilThread.start();
 					}
 				}
 				if (notificacionesEvento.get(0).isNotifica_usuario()) {					
-					EmailUtil emailUtilThread = new EmailUtil(0, solicitudApp.getCorreo(), idDefSolicitud, solicitudApp, body.getNombreOperacion(), resultadoOperacion);
+					EmailUtil emailUtilThread = new EmailUtil(0, solicitudApp.getCorreo(), idDefSolicitud, solicitudApp, eventoOperacion, resultadoOperacion);
 					emailUtilThread.start();
 				}
 			}			
@@ -216,6 +225,32 @@ public class RestUadminController {
 		}
 		return new GenericResponse(estado, mensaje, idProcesamiento);
 	}
+	
+	@PostMapping(path = "/obtenerDataExcel", produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody GenericResponse obtenerDataExcel(@RequestBody RqGetSolicitudesApp body) {
+		boolean estado = true;
+		String mensaje = "";
+		SimpleDateFormat sdfComplete = new SimpleDateFormat(EnumConstantes.DD_MM_YYYY_HH_MM_SS);
+		SimpleDateFormat sdfDMA = new SimpleDateFormat(EnumConstantes.DD_MM_YYYY);
+		List<String[]> datos = new ArrayList<>();
+		try {
+			datos.add(new String[] { "Fecha radicación", "No identificación", "Nombres", "Apellidos", "Ubicación", "Estado", "Etapa" });
+			List<SolicitudesApp> solicitudesList = UadminAppUtil.listaSolicitudesConFiltrosAplicados(body, iSolicitudesAppService, iEventosSolicitudesAppService);
+			for (SolicitudesApp solAppId : solicitudesList) {
+				Date fechaRadicacion = sdfComplete.parse(solAppId.getFecha_registro());
+				String DMA = sdfDMA.format(fechaRadicacion);
+				String labelDM = UadminAppUtil.obtineLabelDepartamentoMunicipio(solAppId.getDepartamento_municipio(),
+						iDepartamentosAppService, iMunicipiosAppService);
+				String etapaSolicitud = UadminAppUtil.obtencionFasePorStep(solAppId.getCurrent_step());
+				datos.add(new String[] { DMA, solAppId.getNumero_identificacion(), solAppId.getNombres(), solAppId.getApellidos(), labelDM, solAppId.getEstado(), etapaSolicitud });
+			}
+		} catch (Exception e) {
+			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
+			mensaje = EnumConstantes.MSG_FAIL;
+			estado = false;
+		}
+		return new GenericResponse(estado, mensaje, datos);
+	}
 
 	@PostMapping(path = "/getSolicitudesApp", produces = MediaType.APPLICATION_JSON_VALUE)
 	public @ResponseBody GenericResponse getSolicitudesApp(@RequestBody RqGetSolicitudesApp body) {
@@ -227,35 +262,9 @@ public class RestUadminController {
 		List<SolicitudAppDto> listaSolicitudesAppDto = new ArrayList<>();
 		int totalElementos = 0;
 		try {
-			listaSolicitudesApp = iSolicitudesAppService.listaSolicitudesApp();
-			
-			if (!body.getEventoFiltro().equals("INITIAL")) {
-				listaSolicitudesApp = iSolicitudesAppService.getSolicitudesAppPorEventoSolicitud(body.getEventoFiltro());
-			}
-			if (!body.getNombreFiltro().isEmpty()) {
-				if (!body.getEventoFiltro().equals("INITIAL")) {
-					listaSolicitudesApp = iSolicitudesAppService.getSolicitudesAppPorEventoSolicitudYNoDocumento(body.getEventoFiltro(), body.getNombreFiltro());
-				} else {
-					listaSolicitudesApp = iSolicitudesAppService.getSolicitudesAppContieneNoDocumento(body.getNombreFiltro());
-				}
-			}
-			
-			if (!body.getFaseFiltro().equals("INITIAL")) {
-				listaSolicitudesApp = UadminAppUtil.listaSolicitudesFiltroFase(listaSolicitudesApp, body.getFaseFiltro());
-			}
-			
-			if(!body.getDepartamentoFiltro().equals("INITIAL")) {				
-				listaSolicitudesApp = UadminAppUtil.listaSolicitudesFiltroDepartamento(listaSolicitudesApp, body.getDepartamentoFiltro());
-			}
-			if(!body.getMunicipioFiltro().equals("INITIAL")) {				
-				listaSolicitudesApp = UadminAppUtil.listaSolicitudesFiltroMunicipio(listaSolicitudesApp, body.getMunicipioFiltro());
-			}
-			if(!body.getDiasUltimaActualizacionFiltro().equals("INITIAL")) {
-				listaSolicitudesApp = UadminAppUtil.listaSolicitudesFiltroDiasUltimaActualizacion(listaSolicitudesApp, body.getDiasUltimaActualizacionFiltro(), iEventosSolicitudesAppService);
-			}
+			listaSolicitudesApp = UadminAppUtil.listaSolicitudesConFiltrosAplicados(body, iSolicitudesAppService, iEventosSolicitudesAppService);
 			totalElementos = listaSolicitudesApp.size();
-			listaSolicitudesAppDto = UadminAppUtil.listaSolicitudesAppDtoPaginada(listaSolicitudesApp, body.getElementosPorPagina(), body.getPaginaActual());
-			
+			listaSolicitudesAppDto = UadminAppUtil.listaSolicitudesAppDtoPaginada(listaSolicitudesApp, body.getElementosPorPagina(), body.getPaginaActual());			
 			for (SolicitudAppDto idSolicitud : listaSolicitudesAppDto) {
 				
 				Date fechaRadicacion = sdfComplete.parse(idSolicitud.getSolicitud().getFecha_registro());
@@ -436,10 +445,16 @@ public class RestUadminController {
 		String mensaje = "";
 		List<NotificacionesAppDto> notificacionesListDto = new ArrayList<>();
 		try {			
-			UadminAppUtil.crearNotificacionEvento(iNotificacionesAppService);		
+			UadminAppUtil.actualizaNotificacionEvento(iNotificacionesAppService);		
 			List<NotificacionesApp> notificacionesList = iNotificacionesAppService.getNotificaciones();
 			for(NotificacionesApp nAId:notificacionesList) {
 				String labelEvento = UadminAppUtil.getResultOperation(nAId.getNombre_evento());
+				if(nAId.getNombre_evento().contains(EnumConstantes.EVENTO_NO_APROBADO)) {
+					String[] labelParticiones = nAId.getNombre_evento().split(";");
+					String labelEventoPt1 = UadminAppUtil.getResultOperation(labelParticiones[0]);
+					String labelEventoPt2 = UadminAppUtil.obtencionFasePorStep(labelParticiones[1]);
+					labelEvento = labelEventoPt1 + " " + labelEventoPt2;
+				}
 				notificacionesListDto.add(new NotificacionesAppDto(nAId, labelEvento));
 			}
 		} catch (Exception e) {
@@ -640,19 +655,21 @@ public class RestUadminController {
 	}
 
 	@PostMapping(path = "/getDepartamentos", produces = MediaType.APPLICATION_JSON_VALUE)
-	public @ResponseBody GenericResponse getDepartamentos() {
+	public @ResponseBody GenericResponse getDepartamentos(@RequestBody RqGetDepartamentos body) {
 		boolean estado = true;
 		String mensaje = "";
 		List<DepartamentosApp> departamentosApp = new ArrayList<>();
+		int totalElementos = 0;
 		try {
 			departamentosApp = iDepartamentosAppService.getDepartamentosList();
+			totalElementos = departamentosApp.size();
 			mensaje = EnumConstantes.MSG_SUCCES;
 		} catch (Exception e) {
 			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
 			estado = false;
 			mensaje = EnumConstantes.MSG_FAIL;
 		}
-		return new GenericResponse(estado, mensaje, departamentosApp);
+		return new GenericResponse(estado, mensaje, new DepartamentosAppDto(departamentosApp, totalElementos));
 	}
 
 	@PostMapping(path = "/registrarMunicipio", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -680,10 +697,11 @@ public class RestUadminController {
 	}
 
 	@PostMapping(path = "/getMunicipios", produces = MediaType.APPLICATION_JSON_VALUE)
-	public @ResponseBody GenericResponse getMunicipios() {
+	public @ResponseBody GenericResponse getMunicipios(@RequestBody RqGetMunicipios body) {
 		boolean estado = true;
 		String mensaje = "";
 		List<MunicipiosDto> municipiosDtoList = new ArrayList<>();
+		int totalElementos = 0;
 		try {
 			List<DepartamentosApp> departamentosApp = iDepartamentosAppService.getDepartamentosList();
 			for (DepartamentosApp departamentoId : departamentosApp) {
@@ -692,13 +710,15 @@ public class RestUadminController {
 					municipiosDtoList.add(new MunicipiosDto(municipiosId, departamentoId));
 				}
 			}
+			totalElementos = municipiosDtoList.size();
+			municipiosDtoList = UadminAppUtil.listaMunicipiosAppPaginada(municipiosDtoList, body.getElementosPorPagina(), body.getPaginaActual());
 			mensaje = EnumConstantes.MSG_SUCCES;
 		} catch (Exception e) {
 			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
 			estado = false;
 			mensaje = EnumConstantes.MSG_FAIL;
 		}
-		return new GenericResponse(estado, mensaje, municipiosDtoList);
+		return new GenericResponse(estado, mensaje, new MunicipiosAppDto(municipiosDtoList, totalElementos));
 	}
 	
 	@PostMapping(path = "/getMunicipiosPorDepartamento", produces = MediaType.APPLICATION_JSON_VALUE)

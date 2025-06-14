@@ -9,5 +9,6 @@ public interface INotificacionesAppService {
 	public List<NotificacionesApp> getNotificaciones();
 	public List<NotificacionesApp> getNotificacionesPorEvento(String nombre_evento);
 	public void registraEventoNotificacion(NotificacionesApp notificacionesApp);
+	public void eliminarEventoNotificacion(NotificacionesApp notificacionesApp);
 
 }

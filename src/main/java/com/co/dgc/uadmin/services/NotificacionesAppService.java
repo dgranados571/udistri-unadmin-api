@@ -14,7 +14,7 @@ public class NotificacionesAppService implements INotificacionesAppService {
 	INotificacionesAppRepo iNotificacionesAppRepo;
 
 	@Override
-	public List<NotificacionesApp> getNotificaciones() {
+	public List<NotificacionesApp> getNotificaciones() {		
 		return iNotificacionesAppRepo.findAll();
 	}
 	
@@ -26,6 +26,11 @@ public class NotificacionesAppService implements INotificacionesAppService {
 	@Override
 	public void registraEventoNotificacion(NotificacionesApp notificacionesApp) {
 		iNotificacionesAppRepo.save(notificacionesApp);		
+	}
+
+	@Override
+	public void eliminarEventoNotificacion(NotificacionesApp notificacionesApp) {
+		iNotificacionesAppRepo.delete(notificacionesApp);
 	}
 
 }

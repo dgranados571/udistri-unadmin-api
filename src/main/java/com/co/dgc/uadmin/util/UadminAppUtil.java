@@ -2,12 +2,14 @@ package com.co.dgc.uadmin.util;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import com.co.dgc.uadmin.dto.BeneficiariosDto;
 import com.co.dgc.uadmin.dto.DocumentosDto;
+import com.co.dgc.uadmin.dto.MunicipiosDto;
 import com.co.dgc.uadmin.dto.SolicitudAppDto;
 import com.co.dgc.uadmin.entity.BeneficiariosApp;
 import com.co.dgc.uadmin.entity.DepartamentosApp;
@@ -17,15 +19,74 @@ import com.co.dgc.uadmin.entity.NotificacionesApp;
 import com.co.dgc.uadmin.entity.SolicitudesApp;
 import com.co.dgc.uadmin.entity.UserApp;
 import com.co.dgc.uadmin.enums.EnumConstantes;
+import com.co.dgc.uadmin.request.RqGetSolicitudesApp;
 import com.co.dgc.uadmin.response.GenericResponse;
 import com.co.dgc.uadmin.services.IDepartamentosAppService;
 import com.co.dgc.uadmin.services.IEventosSolicitudesAppService;
 import com.co.dgc.uadmin.services.IMunicipiosAppService;
 import com.co.dgc.uadmin.services.INotificacionesAppService;
+import com.co.dgc.uadmin.services.ISolicitudesAppService;
 import com.co.dgc.uadmin.services.IUserAppService;
 import com.google.gson.Gson;
 
 public class UadminAppUtil {
+	
+	public static List<SolicitudesApp> listaSolicitudesConFiltrosAplicados(RqGetSolicitudesApp body,
+			ISolicitudesAppService iSolicitudesAppService, IEventosSolicitudesAppService iEventosSolicitudesAppService) {
+		
+		List<SolicitudesApp> listaSolicitudesApp = new ArrayList<>();
+		try {
+			listaSolicitudesApp = iSolicitudesAppService.listaSolicitudesApp();
+			if (!body.getEventoFiltro().equals("INITIAL")) {
+				listaSolicitudesApp = iSolicitudesAppService
+						.getSolicitudesAppPorEventoSolicitud(body.getEventoFiltro());
+			}
+			if (!body.getNombreFiltro().isEmpty()) {
+				if (!body.getEventoFiltro().equals("INITIAL")) {
+					listaSolicitudesApp = iSolicitudesAppService.getSolicitudesAppPorEventoSolicitudYNoDocumento(
+							body.getEventoFiltro(), body.getNombreFiltro());
+				} else {
+					listaSolicitudesApp = iSolicitudesAppService
+							.getSolicitudesAppContieneNoDocumento(body.getNombreFiltro());
+				}
+			}
+			if (!body.getFaseFiltro().equals("INITIAL")) {
+				listaSolicitudesApp = listaSolicitudesFiltroFase(listaSolicitudesApp,
+						body.getFaseFiltro());
+			}
+
+			if (!body.getDepartamentoFiltro().equals("INITIAL")) {
+				listaSolicitudesApp = listaSolicitudesFiltroDepartamento(listaSolicitudesApp,
+						body.getDepartamentoFiltro());
+			}
+			if (!body.getMunicipioFiltro().equals("INITIAL")) {
+				listaSolicitudesApp = listaSolicitudesFiltroMunicipio(listaSolicitudesApp,
+						body.getMunicipioFiltro());
+			}
+			if (!body.getDiasUltimaActualizacionFiltro().equals("INITIAL")) {
+				listaSolicitudesApp = listaSolicitudesFiltroDiasUltimaActualizacion(listaSolicitudesApp,
+						body.getDiasUltimaActualizacionFiltro(), iEventosSolicitudesAppService);
+			}
+		} catch (Exception e) {
+			System.out.println(EnumConstantes.ERROR_SIMBOLO + e);
+		}
+		return listaSolicitudesApp;
+	}
+	
+	
+	public static List<MunicipiosDto> listaMunicipiosAppPaginada(List<MunicipiosDto> municipiosDtoList, int elementosPorPagina, int paginaActual) {
+		List<MunicipiosDto> municipiosDtoListPost = new ArrayList<>();
+		int rangoInicial = (paginaActual * elementosPorPagina) - elementosPorPagina;
+		for (int i = 0; i < municipiosDtoList.size(); i++) {
+			if ((i + 1) > rangoInicial) {
+				municipiosDtoListPost.add(municipiosDtoList.get(i));
+			}
+			if (municipiosDtoListPost.size() == elementosPorPagina) {
+				break;
+			}
+		}
+		return municipiosDtoListPost;
+	}
 	
 	public static String obtencionModuloDeGestion(String step, String role) {
 		
@@ -482,25 +543,24 @@ public class UadminAppUtil {
 		return new GenericResponse(estado, mensaje, new GenericResponse());
 	}
 	
-	public static void crearNotificacionEvento(INotificacionesAppService iNotificacionesAppService) {
-		inicializaNotificacionEvento(EnumConstantes.EVENTO_CREA_SOLICITUD, iNotificacionesAppService);
-		inicializaNotificacionEvento(EnumConstantes.EVENTO_PREAPROBADO, iNotificacionesAppService);
-		inicializaNotificacionEvento(EnumConstantes.EVENTO_NO_PREAPROBADO, iNotificacionesAppService);
-		inicializaNotificacionEvento(EnumConstantes.EVENTO_DEVUELTO_GESTION, iNotificacionesAppService);
-		inicializaNotificacionEvento(EnumConstantes.EVENTO_ASIGNA_A_REVISION, iNotificacionesAppService);
-		inicializaNotificacionEvento(EnumConstantes.EVENTO_ESTUDIO_VIABILIDAD, iNotificacionesAppService);		
-	}
-	
-	public static boolean inicializaNotificacionEvento(String nombreEvento, INotificacionesAppService iNotificacionesAppService) {
-		try {
+	public static void actualizaNotificacionEvento(INotificacionesAppService iNotificacionesAppService) {		
+		String[] eventosAnotificar = {
+				EnumConstantes.EVENTO_PREAPROBADO, EnumConstantes.EVENTO_ESTUDIO_VIABILIDAD, EnumConstantes.EVENTO_LICENCIA_SUBSIDIO, 
+				EnumConstantes.EVENTO_NO_APROBADO + ";" + EnumConstantes.STEP_2
+		};
+		List<NotificacionesApp> notificacionesList = iNotificacionesAppService.getNotificaciones();
+		for(NotificacionesApp nAId:notificacionesList) {
+			boolean eventoValido = Arrays.asList(eventosAnotificar).contains(nAId.getNombre_evento());
+			if(!eventoValido) {
+				iNotificacionesAppService.eliminarEventoNotificacion(nAId);
+			}
+		}
+		for(String nombreEvento:eventosAnotificar) {
 			List<NotificacionesApp> notificacioneEvento = iNotificacionesAppService.getNotificacionesPorEvento(nombreEvento);
 			if(notificacioneEvento.isEmpty()) {
 				iNotificacionesAppService.registraEventoNotificacion(new NotificacionesApp(nombreEvento, false, ""));
-			}
-			return true;
-		} catch (Exception e) {
-			return false;
-		}
+			}	
+		}		
 	}
 	
 	public static <T> String gsonActionsToString(T object) {

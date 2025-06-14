@@ -1,0 +1,25 @@
+package com.co.dgc.uadmin.request;
+
+public class RqGetMunicipios {
+	
+	private int elementosPorPagina;
+	private int paginaActual;
+	
+	public RqGetMunicipios() {
+		super();
+	}
+	
+	public int getElementosPorPagina() {
+		return elementosPorPagina;
+	}
+	public void setElementosPorPagina(int elementosPorPagina) {
+		this.elementosPorPagina = elementosPorPagina;
+	}
+	public int getPaginaActual() {
+		return paginaActual;
+	}
+	public void setPaginaActual(int paginaActual) {
+		this.paginaActual = paginaActual;
+	}
+	
+}
